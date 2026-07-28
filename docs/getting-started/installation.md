@@ -11,11 +11,22 @@ no configuration; the binary is the whole install.
     curl -fsSL https://raw.githubusercontent.com/holistic-ai/surface/main/install.sh | sh
     ```
 
-=== "Windows"
+=== "Windows (PowerShell)"
 
     ```powershell
     irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex
     ```
+
+    Works in both Windows PowerShell 5.1 and PowerShell 7.
+
+=== "Windows (cmd)"
+
+    ```bat
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex"
+    ```
+
+    `irm` and `iex` are PowerShell aliases and do not exist in `cmd.exe`, so the
+    command above hands the job to PowerShell rather than running there.
 
 === "Cargo"
 
@@ -75,7 +86,26 @@ SURFACE_INSTALL_DIR=~/bin sh install.sh  # somewhere else
 
 On Windows the equivalents are `$env:SURFACE_VERSION` and
 `$env:SURFACE_INSTALL_DIR`; the default there is `%LOCALAPPDATA%\Programs\surface`,
-which the script adds to your user `PATH`.
+which the script adds to your user `PATH`. Set them before the install command in
+the same session:
+
+=== "PowerShell"
+
+    ```powershell
+    $env:SURFACE_INSTALL_DIR = 'C:\tools'
+    irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex
+    ```
+
+=== "cmd"
+
+    ```bat
+    set SURFACE_INSTALL_DIR=C:\tools
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex"
+    ```
+
+Only the installer is PowerShell-only. Once it has run, `surface` itself is an
+ordinary executable on your `PATH` and runs from cmd, PowerShell and Windows
+Terminal alike — reopen the terminal first, so it picks up the new `PATH`.
 
 ## Verifying a download
 

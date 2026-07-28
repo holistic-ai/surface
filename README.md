@@ -50,8 +50,13 @@ curl -fsSL https://raw.githubusercontent.com/holistic-ai/surface/main/install.sh
 ```
 
 ```powershell
-# Windows
+# Windows, PowerShell
 irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex
+```
+
+```bash
+#Windows, cmd.exe — irm and iex are PowerShell only
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex"
 ```
 
 ```sh
