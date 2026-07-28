@@ -46,7 +46,7 @@ sha2 = "0.10"
 # Only the process list, for detecting a running agent. The default features
 # are what pull rayon, crossbeam and the windows crate family.
 sysinfo = { version = "0.32", default-features = false, features = ["system"] }
-toml = "0.8"
+toml = "1.1"
 
 [profile.release]
 opt-level = "z"
