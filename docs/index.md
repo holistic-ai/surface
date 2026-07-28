@@ -35,11 +35,19 @@ config already on your disk, then tells you what runs here and what it cost.
     curl -fsSL https://raw.githubusercontent.com/holistic-ai/surface/main/install.sh | sh
     ```
 
-=== ":fontawesome-brands-windows: Windows"
+=== ":fontawesome-brands-windows: Windows · PowerShell"
 
     ```powershell
     irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex
     ```
+
+=== ":fontawesome-brands-windows: Windows · cmd"
+
+    ```bat
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/holistic-ai/surface/main/install.ps1 | iex"
+    ```
+
+    `irm` and `iex` are PowerShell only, so cmd hands the job over.
 
 === ":simple-rust: Cargo"
 
