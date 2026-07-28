@@ -29,3 +29,13 @@ single logo by re-fetching its URL and re-running the same chip step.
 | `continue.png` | <https://github.com/continuedev.png?size=128> |
 | `ollama.png` | <https://cdn.simpleicons.org/ollama/_default> |
 | `lm_studio.png` | <https://cdn.simpleicons.org/lmstudio/_default> |
+
+## Supporters
+
+Set on the same Paper chip as the marks above, and for the same reason: the
+wordmark is dark navy and would disappear against a dark canvas.
+
+| File | Source |
+|---|---|
+| `../holistic-ai.png` | chip cut of the SVG below |
+| `../holistic-ai.svg` | <https://cdn.prod.website-files.com/6305e5d42c283515c3e71b8c/6a2bc3de347d02b4b991451b_Holistic-AI-2026-Primary-Logo.svg> |
