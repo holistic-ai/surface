@@ -42,9 +42,6 @@ tools are installed, which AI sites you use, how many tokens those tools have
 spent, and what that came to in dollars. No account, no daemon, no telemetry — it
 reads files that are already on your disk and shows you what is in them.
 
-
-*(`surface --demo`, so the numbers are mock — the dashboard says `DEMO` while they are. The layout is the real thing.)*
-
 ## Install
 
 ```sh
