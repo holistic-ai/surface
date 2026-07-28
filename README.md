@@ -256,6 +256,18 @@ contribution and mostly means editing a table. Vulnerabilities go through
 [`SECURITY.md`](SECURITY.md) rather than the issue tracker. Maintainers cutting a
 release want [`RELEASING.md`](RELEASING.md).
 
+## Contributors
+
+<a href="https://github.com/holistic-ai/surface/graphs/contributors">
+  <img alt="Contributors to surface" src="https://contrib.rocks/image?repo=holistic-ai/surface">
+</a>
+
+## Supported by
+
+<a href="https://www.holisticai.com">
+  <img alt="Holistic AI" src="docs/assets/holistic-ai.png" width="300">
+</a>
+
 ## Licence
 
 Apache License 2.0 — see [LICENSE](LICENSE).
