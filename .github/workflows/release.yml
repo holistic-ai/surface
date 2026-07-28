@@ -1,0 +1,225 @@
+name: release
+
+# Tag-triggered. `git tag v0.1.0 && git push --tags` builds every target and
+# attaches the archives to a GitHub Release. See RELEASING.md for the ordering
+# that matters — the tag has to agree with Cargo.toml and Cargo.lock has to be
+# committed alongside the version bump, or `check` below stops the run.
+#
+# workflow_dispatch builds and uploads artifacts but publishes nothing, so it is
+# safe to use as a dry run on a branch.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Fast fail. Six slow release builds are a bad place to discover that the tag
+  # and Cargo.toml disagree, or that the crate does not package.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: tag matches Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          manifest=$(cargo metadata --no-deps --format-version 1 |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["version"])')
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$manifest" != "$tag" ]; then
+            echo "::error::tag $GITHUB_REF_NAME says $tag but Cargo.toml says $manifest"
+            exit 1
+          fi
+          echo "version $manifest"
+
+      - name: changelog has an entry for this version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v v="$ver" '
+            $0 ~ "^## \\[" v "\\]" { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no '## [$ver]' section to use as release notes"
+            exit 1
+          fi
+          cat notes.md
+
+      # Catches packaging problems — a bad `exclude`, a missing README, a
+      # manifest field crates.io rejects — before the Release exists rather
+      # than after it is public.
+      - run: cargo publish --locked --dry-run
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          # The glibc builds run on 22.04 deliberately: the binary needs at
+          # least the glibc it was linked against, and building on the newest
+          # runner would silently raise that floor above Debian 12 and
+          # RHEL 9. install.sh knows this floor is 2.35.
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          # Statically linked, so it needs no glibc at all. This is what
+          # install.sh falls back to on Alpine, or on a distro too old for the
+          # gnu build.
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # SQLite is compiled from C, so both of these need a C compiler for the
+      # target and not just a Rust one. Setting CC_<target> is the step that is
+      # easy to miss: without it `cc` builds the amalgamation for the host.
+      - name: install aarch64 cross toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: install musl cross toolchain
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
+
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # One archive per target, named so the contents are obvious on the
+      # releases page. Binaries are already stripped by the release profile.
+      - name: package (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          name="surface-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          cp target/${{ matrix.target }}/release/surface "dist/$name/"
+          cp README.md LICENSE surface.example.toml "dist/$name/"
+          tar -czf "dist/$name.tar.gz" -C dist "$name"
+          # `cd` first so shasum's own output carries the bare archive name —
+          # exactly the format `shasum -c` / `sha256sum -c` expects, and what
+          # install.sh greps for.
+          (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+
+      - name: package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $name = "surface-${{ github.ref_name }}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path "dist/$name" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/surface.exe" "dist/$name/"
+          Copy-Item README.md, LICENSE, surface.example.toml "dist/$name/"
+          Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip"
+          # WriteAllText, not Out-File: Out-File would end the line with CRLF,
+          # and a stray \r breaks `shasum -c SHA256SUMS` for anyone verifying
+          # the download by hand.
+          $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText("$PWD/dist/$name.zip.sha256", "$hash  $name.zip`n")
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    needs: build
+    # Without this, a workflow_dispatch run reaches action-gh-release with a
+    # branch instead of a tag and fails there. Building on a branch is useful;
+    # publishing from one is not.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the Release
+      id-token: write # sign the provenance
+      attestations: write # record it
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: collect checksums
+        run: cat dist/*.sha256 > dist/SHA256SUMS && rm dist/*.sha256
+
+      # SHA256SUMS is served from the same place as the archives, so on its own
+      # it proves the download is intact, not that we built it. This ties each
+      # archive to this repo, this workflow and this commit, verifiable with
+      # `gh attestation verify <file> --repo holistic-ai/surface`.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+      # The section of CHANGELOG.md for this version, which `check` already
+      # proved is non-empty.
+      - name: release notes
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '
+            $0 ~ "^## \\[" v "\\]" { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md > notes.md
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS
+          body_path: notes.md
+          # A hand-written changelog says what changed for a user; generated
+          # notes from a squashed history say "initial commit".
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+
+  # Publishing to crates.io is separate so a failed publish does not leave the
+  # GitHub Release half-made. Needs CARGO_REGISTRY_TOKEN in repo secrets.
+  crates-io:
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

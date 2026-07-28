@@ -1,0 +1,81 @@
+name: docs
+
+# Builds the site and publishes it to GitHub Pages.
+#
+# One-time setup in the repository: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions". No token or gh-pages branch needed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "overrides/**" # the header partial the theme's custom_dir points at
+      - "mkdocs.yml"
+      - "scripts/rustdoc_hook.py"
+      - "src/**" # the Rust API reference is generated from the source
+      - "Cargo.toml"
+      - "surface.example.toml" # included verbatim into the configuration page
+      - ".github/workflows/docs.yml"
+  workflow_dispatch: # allow manual runs
+
+# The build job needs nothing but a checkout; the deploy job widens this for
+# itself below.
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # Cairo and friends, needed by the social-cards plugin to render the
+      # og:image for each page.
+      - name: Install imaging libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev
+
+      - name: Install docs deps
+        run: |
+          uv venv --python 3.12
+          uv pip install -r docs/requirements.txt
+
+      # The rustdoc hook in mkdocs.yml runs `cargo doc` during the site build
+      # and folds the output into site/rust/, so cargo must be present.
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build site
+        run: uv run mkdocs build --strict
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # deploy to GitHub Pages
+      id-token: write # OIDC token used by deploy-pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

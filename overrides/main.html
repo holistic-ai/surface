@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{#-
+  The in-development banner. `announce` is Material's own hook for the bar above
+  the header — it renders the `.md-banner` wrapper only when this block has
+  content, so an empty override costs nothing.
+
+  Deliberately not dismissible: `announce.dismiss` is left out of `features` in
+  `mkdocs.yml` because most readers arrive on a deep page from a search result,
+  and the one thing this bar says is the thing they most need before they copy a
+  command out of it.
+
+  Styled by `.md-banner` / `.site-announce` in `docs/stylesheets/extra.css`.
+-#}
+{% block announce %}
+  <div class="site-announce">
+    <strong>surface is in development.</strong>
+    Below 1.0, minor releases may contain breaking changes —
+    <a href="{{ 'reference/stability/' | url }}">what that covers</a>.
+  </div>
+{% endblock %}

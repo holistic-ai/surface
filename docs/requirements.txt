@@ -1,0 +1,11 @@
+# Dependencies for building this site. Nothing here is needed to build or run
+# surface itself — that is `cargo build`, and it has no Python in it anywhere.
+#
+#   uv venv && uv pip install -r docs/requirements.txt && uv run mkdocs serve
+#
+# `[imaging]` pulls Pillow and CairoSVG, which the social-cards plugin needs to
+# render an og:image per page. Cards are off locally and on in CI (see the
+# `social` plugin in mkdocs.yml), so a failed Cairo install costs you nothing
+# but the preview images.
+mkdocs-material[imaging]>=9.5,<10
+pymdown-extensions>=10.7

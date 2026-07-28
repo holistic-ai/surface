@@ -1,0 +1,20 @@
+/target
+Cargo.lock.bak
+*.pdb
+/state
+/logs
+*.jsonl
+
+# docs site build, its Python environment, and the Material plugin cache
+/site
+/.venv
+/.cache
+__pycache__/
+*.DS_Store
+
+# Media masters. The site and the README serve the derivatives next to them
+# (banner.webp, demo-surface.mp4, demo-poster.webp), which are committed; these
+# are the multi-megabyte originals they were encoded from and do not belong in
+# the history of a 3 MB repository. Keep them somewhere you can find them.
+/docs/assets/banner-1.png
+/docs/assets/demo-surface.mov

@@ -1,0 +1,58 @@
+[package]
+# `surface` was already taken on crates.io, so the crate is published as
+# `surface-cli`. The binary below keeps the short name — `cargo install
+# surface-cli` puts `surface` on the PATH.
+name = "surface-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "Apache-2.0"
+description = "What AI runs here, and what it costs. A local scan of your AI tools, sites, tokens and spend."
+repository = "https://github.com/holistic-ai/surface"
+homepage = "https://holistic-ai.github.io/surface/"
+readme = "README.md"
+keywords = ["ai", "llm", "tui", "cost", "tokens"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = ["/.github", "/docs", "/overrides", "/scripts", "/mkdocs.yml", "/site"]
+
+[[bin]]
+name = "surface"
+path = "src/main.rs"
+
+[features]
+default = ["sqlite"]
+# SQLite, compiled from C by `bundled` — the one dependency that needs a C
+# toolchain, and the one thing standing between this crate and trivial
+# cross-compilation. So it is opt-out rather than mandatory.
+#
+# Two things need it: browser history (Chromium and Firefox both store it in
+# SQLite) and OpenCode's token history. Without it you still get AI tool
+# detection and Claude Code / Codex token usage, which are plain JSONL.
+#
+# Released binaries are built with it, so nobody installing a binary compiles C.
+sqlite = ["rusqlite"]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+clap = { version = "4", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
+crossterm = "0.28"
+directories = "5"
+ratatui = "0.29"
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+# Only the process list, for detecting a running agent. The default features
+# are what pull rayon, crossbeam and the windows crate family.
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+toml = "0.8"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+# Deliberately NOT `panic = "abort"`: each section of the scan runs inside
+# `catch_unwind`, so one bad parser degrades that section instead of taking the
+# whole scan down.

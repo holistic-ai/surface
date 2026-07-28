@@ -1,0 +1,962 @@
+/* ================================================================== *
+ * surface — a flat, high-contrast theme in Google                   *
+ * Sans Flex (text) and Google Sans Code (code), layered over Material *
+ * for MkDocs.                                                         *
+ *                                                                     *
+ * Everything is namespaced `--site-*` / `.site-*`, so it never        *
+ * collides with Material (`md-`) or mkdocstrings (`doc-`) classes.    *
+ *                                                                     *
+ * To rebrand: swap the ten `--site-c-*` ramp values below. Every     *
+ * other color in this file — and every Material variable it maps —    *
+ * is derived from that ramp, so nothing else needs touching.          *
+ * ================================================================== */
+
+/* ------------------------------------------------------------------ *
+ * The palette. Two colours, and the blends the roles need.            *
+ *                                                                     *
+ * Ink #181818 and Paper #f5f5f0 are the brand. Everything between them *
+ * is one of the two mixed into the other — no third hue enters, so the *
+ * page stays two-tone the way the glyph field is.                      *
+ *                                                                     *
+ * The mid-steps are NOT even blends. A linear mix lands well short of  *
+ * the contrast each role needs (a 50% mix reads 3.5:1, not the 4.6:1   *
+ * secondary text wants), so each one is solved for its target ratio    *
+ * and the blend fraction falls out. Ratios below are against Paper.    *
+ * ------------------------------------------------------------------ */
+:root {
+  --site-c-paper:     #f5f5f0;  /*  1.00 — the page                    */
+  --site-c-paper-2:   #ecece7;  /*  1.08 — code, hover surface         */
+  --site-c-paper-3:   #e3e3df;  /*  1.18 — raised surface              */
+  --site-c-mist:      #d8d8d4;  /*  1.31 — hairline border             */
+  --site-c-ash:       #c1c1bd;  /*  1.65 — strong border               */
+  --site-c-smoke:     #8c8c8a;  /*  3.08 — faint text                  */
+  --site-c-slate:     #6f6f6d;  /*  4.60 — secondary text, AA          */
+  --site-c-graphite:  #525251;  /*  7.15 — body text, AAA              */
+  --site-c-charcoal:  #303030;  /* 12.07 — headings                    */
+  --site-c-ink:       #181818;  /* 16.24 — header, footer, max ink      */
+}
+
+/* ------------------------------------------------------------------ *
+ * Light scheme — Paper page, Ink type.                  *
+ * ------------------------------------------------------------------ */
+:root,
+[data-md-color-scheme="default"] {
+  /* Accent is the highest-contrast end of the ramp: hovers and active
+     states gain contrast rather than shifting hue. */
+  --md-accent-fg-color: var(--site-c-ink);
+  --md-accent-fg-color--transparent: rgba(24, 24, 24, 0.1);
+
+  --md-primary-fg-color: var(--site-c-ink);
+  --md-primary-fg-color--light: var(--site-c-charcoal);
+  --md-primary-fg-color--dark: var(--site-c-ink);
+  --md-primary-bg-color: var(--site-c-paper);
+  --md-primary-bg-color--light: var(--site-c-mist);
+
+  --md-default-bg-color: var(--site-c-paper);
+  --md-default-bg-color--light: var(--site-c-paper);
+  --md-default-bg-color--lighter: var(--site-c-paper-2);
+  --md-default-bg-color--lightest: var(--site-c-paper-3);
+
+  /* One step darker than the ramp's midpoints, because the glyph field runs
+     under this text as well as beside it: contrast is measured against a glyph
+     pixel (#e1e1dd), not against Paper. The midpoints measured 3.84:1 and
+     2.42:1 there — under AA and under the 3:1 floor respectively. */
+  --md-default-fg-color: var(--site-c-charcoal);        /* 10.07:1 over a glyph */
+  --md-default-fg-color--light: var(--site-c-graphite); /*  5.97:1 */
+  --md-default-fg-color--lighter: var(--site-c-slate);  /*  3.84:1, non-text */
+  --md-default-fg-color--lightest: var(--site-c-ash);
+
+  --md-code-bg-color: var(--site-c-paper-2);
+  --md-code-fg-color: var(--site-c-ink);
+
+  --md-footer-bg-color: var(--site-c-ink);
+  --md-footer-bg-color--dark: var(--site-c-ink);
+  --md-footer-fg-color: var(--site-c-paper);
+  --md-footer-fg-color--light: var(--site-c-smoke);
+  --md-footer-fg-color--lighter: var(--site-c-slate);
+
+  /* Site chrome. */
+  --site-heading: var(--site-c-ink);
+  --site-border: var(--site-c-paper-3);
+  --site-border-strong: var(--site-c-smoke);
+  --site-hover: var(--site-c-paper-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Dark scheme — Ink page, Paper type. Same ramp, read from   *
+ * the other end.                                                      *
+ * ------------------------------------------------------------------ */
+[data-md-color-scheme="slate"] {
+  /* Material mixes its own greys from this hue wherever the ramp below does
+     not name a colour. The palette is neutral, so this is 0 — at Material's
+     baked 15% saturation those leftovers read as near-neutral either way. */
+  --md-hue: 0;
+
+  --md-accent-fg-color: var(--site-c-paper);
+  --md-accent-fg-color--transparent: rgba(245, 245, 240, 0.1);
+
+  --md-primary-fg-color: var(--site-c-ink);
+  --md-primary-fg-color--light: var(--site-c-charcoal);
+  --md-primary-fg-color--dark: var(--site-c-ink);
+  --md-primary-bg-color: var(--site-c-paper);
+  --md-primary-bg-color--light: var(--site-c-smoke);
+
+  --md-default-bg-color: var(--site-c-ink);
+  --md-default-bg-color--light: var(--site-c-ink);
+  --md-default-bg-color--lighter: var(--site-c-charcoal);
+  --md-default-bg-color--lightest: var(--site-c-graphite);
+
+  /* Same shift, other end of the ramp — over a glyph pixel on Ink (#262626)
+     the old secondary step measured 4.49:1, a hair under AA. */
+  --md-default-fg-color: var(--site-c-paper);      /* 13.0:1 over a glyph */
+  --md-default-fg-color--light: var(--site-c-mist);    /* 10.1:1 */
+  --md-default-fg-color--lighter: var(--site-c-smoke); /*  4.49:1, non-text */
+  --md-default-fg-color--lightest: var(--site-c-graphite);
+
+  --md-code-bg-color: var(--site-c-charcoal);
+  --md-code-fg-color: var(--site-c-paper-2);
+
+  --md-footer-bg-color: var(--site-c-ink);
+  --md-footer-bg-color--dark: var(--site-c-ink);
+  --md-footer-fg-color: var(--site-c-paper);
+  --md-footer-fg-color--light: var(--site-c-smoke);
+  --md-footer-fg-color--lighter: var(--site-c-slate);
+
+  --site-heading: var(--site-c-paper);
+  --site-border: var(--site-c-graphite);
+  --site-border-strong: var(--site-c-slate);
+  --site-hover: var(--site-c-charcoal);
+}
+
+/* ------------------------------------------------------------------ *
+ * Type — Google Sans Flex for text and UI, Google Sans Code for code. *
+ * Both are set by `theme.font` in mkdocs.yml and reach us through     *
+ * Material's font variables, so that config stays the single source.  *
+ * Google Sans Flex ships no italic faces; browsers synthesize them.   *
+ * ------------------------------------------------------------------ */
+body,
+.md-typeset,
+.md-nav,
+.md-header,
+.md-footer,
+input,
+button {
+  font-family: var(--md-text-font-family), system-ui, -apple-system, sans-serif;
+  font-feature-settings: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.md-typeset code,
+.md-typeset pre,
+.md-typeset kbd {
+  font-family: var(--md-code-font-family), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+}
+
+.md-typeset {
+  line-height: 1.7;
+  font-size: 0.8rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * The in-development banner, above the header.                        *
+ *                                                                     *
+ * Content lives in `overrides/main.html`. Ash is the only ramp step used as   *
+ * a background anywhere on the site, so the bar reads as a notice without      *
+ * leaving the two-tone ramp — an amber would be the only warm pixel here, and  *
+ * the admonitions already establish that this theme signals with weight        *
+ * rather than hue.                                                            *
+ *                                                                             *
+ * Ink type on it, 9.83:1, in both schemes. The bar does not invert for the     *
+ * dark scheme: sitting light above an Ink header is the whole point of it, and *
+ * inverting would sink it into the chrome. The bottom rule is Slate, which is  *
+ * only 2.79:1 against Ash — fine for a hairline, not for text.                 *
+ * --------------------------------------------------------------------------- */
+.md-banner {
+  background-color: var(--site-c-ash);
+  color: var(--site-c-ink);
+  border-bottom: 1px solid var(--site-c-slate);
+}
+.site-announce {
+  font-size: 0.68rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+.site-announce strong {
+  font-weight: 700;
+}
+/* Material's typeset link color is derived from the page background, which this
+   bar does not share — so the link is restated against Ash. */
+.md-banner .site-announce a {
+  color: var(--site-c-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.md-banner .site-announce a:hover,
+.md-banner .site-announce a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Structural chrome — borders that frame the columns.                 *
+ * ------------------------------------------------------------------ */
+/* Header and footer stay Ink in both schemes, so the white
+   line-art logo and the page frame read the same either way. */
+.md-header {
+  background-color: var(--site-c-ink);
+  color: var(--site-c-paper);
+  border-bottom: 1px solid var(--site-c-graphite);
+  box-shadow: none;
+}
+/* "Powered by Holistic AI", added to the header by
+   `overrides/partials/header.html`. Cadet Blue for the phrase and Paper
+   for the name, so the attribution is present without competing with the site
+   title beside it; the whole thing goes Paper on hover.
+
+   It sits at the left, immediately after the title, which takes some doing:
+   `.md-header__title` has no intrinsic width, because Material overlays its
+   two `.md-header__topic` children with absolute positioning to cross-fade
+   site name and page title. Left alone it claims all the row's slack and
+   pushes anything after it to the far right; simply clearing its `flex-grow`
+   collapses it to zero and the title vanishes.
+
+   So the two topics are restacked into a single grid cell instead. They still
+   overlap, the cell is as wide as the wider of the two — so neither is clipped
+   when the swap happens — and the title now has a width of its own to give up.
+   The swap animation is opacity, `translateX` and `z-index` only, none of
+   which depend on the absolute positioning, so it survives untouched. */
+@media screen and (min-width: 60em) {
+  .md-header__title {
+    flex-grow: 0;
+  }
+  .md-header__title > .md-header__ellipsis {
+    display: grid;
+    width: auto;
+  }
+  .md-header__ellipsis > .md-header__topic {
+    position: relative;
+    grid-area: 1 / 1;
+    align-items: center;
+  }
+  .site-powered {
+    margin-right: auto;
+    padding: 0 0.8rem;
+    color: var(--site-c-smoke);
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: color 125ms;
+  }
+  .site-powered strong {
+    color: var(--site-c-paper);
+    font-weight: 500;
+  }
+  .site-powered:hover,
+  .site-powered:focus-visible {
+    color: var(--site-c-paper);
+  }
+}
+
+/* Below that the header is the logo, the title and the icons — no room left. */
+@media screen and (max-width: 59.9375em) {
+  .site-powered {
+    display: none;
+  }
+}
+
+.md-footer {
+  background-color: var(--site-c-ink);
+  border-top: 1px solid var(--site-c-graphite);
+}
+.md-footer-meta {
+  background-color: var(--site-c-ink);
+  font-size: 0.68rem;
+}
+.md-footer__link:hover,
+.md-footer-meta .md-footer__link:focus {
+  color: var(--site-c-paper);
+  opacity: 1;
+}
+
+/* Sidebar / TOC column dividers. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary {
+    border-right: 1px solid var(--site-border);
+  }
+  .md-sidebar--secondary {
+    border-left: 1px solid var(--site-border);
+  }
+}
+
+/* Header title + search, squared off. */
+.md-header__title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.md-search__form {
+  border-radius: 0;
+  border: 1px solid var(--site-c-graphite);
+  background-color: var(--site-c-charcoal);
+  box-shadow: none;
+}
+.md-search__form:hover {
+  background-color: var(--site-c-graphite);
+}
+.md-search__input {
+  border-radius: 0;
+  color: var(--site-c-paper);
+}
+.md-search__input::placeholder,
+.md-search__icon {
+  color: var(--site-c-smoke);
+}
+[data-md-toggle="search"]:checked ~ .md-header .md-search__output,
+.md-search__output {
+  border-radius: 0;
+}
+
+/* Header logo: thin line-art, so scale it up and add a faint glow. */
+.md-header__button.md-logo {
+  padding: 0.2rem;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+}
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.9rem;
+  width: 1.9rem;
+  /* No filter. The mark is line art in Paper on an Ink header, which is all the
+     separation it needs — a glow behind it only softened its own edges. */
+  filter: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Navigation — flat labels, boxed active item.                        *
+ * ------------------------------------------------------------------ */
+.md-nav {
+  font-size: 0.72rem;
+}
+.md-nav__title {
+  font-weight: 700;
+}
+
+/* Section labels (Getting started / User guide / API reference). */
+.md-nav__item--section > .md-nav__link,
+.md-nav--primary .md-nav__item--section > label.md-nav__link {
+  color: var(--site-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.66rem;
+  opacity: 0.9;
+  margin-top: 0.5rem;
+}
+
+/* Links: quieter, squared hover box. */
+.md-nav__link {
+  border-radius: 0;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+.md-nav__link:hover {
+  color: var(--site-heading);
+  background-color: var(--site-hover);
+}
+.md-nav__link--active,
+.md-nav__link--active:focus,
+.md-nav__link--active:hover,
+.md-nav__item .md-nav__link--active {
+  color: var(--site-heading);
+  font-weight: 700;
+  background-color: var(--site-hover);
+  box-shadow: inset 3px 0 0 var(--md-accent-fg-color);
+  padding-left: 0.9rem;
+}
+
+/* TOC ("On this page") heading. */
+.md-nav--secondary .md-nav__title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ *
+ * Typography — mono headings, subtle underlined links.                *
+ * ------------------------------------------------------------------ */
+.md-typeset h1 {
+  font-weight: 700;
+  font-size: 2rem;
+  letter-spacing: 0;
+  color: var(--site-heading);
+  margin-bottom: 0.3rem;
+}
+.md-typeset h2 {
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  color: var(--site-heading);
+  margin-top: 2.4em;
+  padding-top: 1em;
+  border-top: 1px solid var(--site-border);
+}
+.md-typeset h3 {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0;
+  color: var(--site-heading);
+}
+.md-typeset h4 {
+  font-weight: 700;
+  color: var(--site-heading);
+}
+
+/* Inline links: thin underline, accent on hover. */
+.md-typeset a {
+  color: var(--md-default-fg-color);
+  text-decoration: underline;
+  text-decoration-color: var(--site-border-strong);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: color 100ms ease, text-decoration-color 100ms ease;
+}
+.md-typeset a:hover {
+  color: var(--md-accent-fg-color);
+  text-decoration-color: var(--md-accent-fg-color);
+}
+.md-nav__link,
+.md-typeset .md-button {
+  text-decoration: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Surfaces — everything square and flat.                              *
+ * ------------------------------------------------------------------ */
+.md-typeset pre > code,
+.md-typeset code {
+  border-radius: 0;
+}
+.md-typeset code {
+  font-size: 0.86em;
+  padding: 0.1em 0.35em;
+}
+.md-typeset .highlight,
+.md-typeset pre > code {
+  border: 1px solid var(--site-border);
+}
+/* ...but not both at once. A highlighted block is `.highlight > pre > code`, so
+   the two rules above drew a box inside a box; the inner one goes. An indented
+   block with no highlighting has no `.highlight` wrapper and still needs its
+   own frame, which is why the rule above stays. */
+.md-typeset .highlight pre > code {
+  border: 0;
+}
+
+.md-typeset table:not([class]) {
+  border: 1px solid var(--site-border);
+  border-radius: 0;
+  overflow: hidden;
+  font-size: 0.72rem;
+}
+.md-typeset table:not([class]) th {
+  font-weight: 700;
+  color: var(--site-heading);
+  background: var(--site-hover);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.68rem;
+}
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--site-border);
+}
+
+.md-typeset img {
+  border-radius: 0;
+}
+.md-typeset figure img,
+.md-typeset p > img {
+  border: 1px solid var(--site-border);
+  box-shadow: none;
+}
+.md-typeset figcaption {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  margin-top: 0.4em;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 0;
+  border: 1px solid var(--site-border);
+  border-left-width: 3px;
+  border-left-color: var(--site-border-strong);
+  background-color: var(--md-default-bg-color);
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+/* Admonitions stay on the neutral ramp — Material's hue-coded variants
+   are overridden so callouts read as weight, not color. Emphasis rises
+   with the left rule: note → tip → warning → danger. */
+.md-typeset .admonition-title,
+.md-typeset summary {
+  background-color: var(--site-hover);
+  border: none;
+  color: var(--site-heading);
+  font-weight: 700;
+}
+.md-typeset .admonition-title::before,
+.md-typeset summary::before {
+  background-color: var(--site-heading);
+}
+.md-typeset .admonition > :last-child,
+.md-typeset details > :last-child {
+  margin-bottom: 0.6rem;
+}
+.md-typeset .note,
+.md-typeset .info,
+.md-typeset .abstract,
+.md-typeset .example,
+.md-typeset .quote {
+  border-left-color: var(--site-c-smoke);
+}
+.md-typeset .tip,
+.md-typeset .success,
+.md-typeset .question {
+  border-left-color: var(--site-c-slate);
+}
+.md-typeset .warning,
+.md-typeset .failure {
+  border-left-color: var(--site-heading);
+}
+.md-typeset .danger,
+.md-typeset .bug {
+  border-left-width: 5px;
+  border-left-color: var(--site-heading);
+}
+
+/* Content buttons flat. */
+.md-typeset .md-button {
+  border-radius: 0;
+  color: var(--site-heading);
+  border-color: var(--site-border-strong);
+}
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-default-bg-color);
+}
+.md-typeset .md-button--primary {
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-default-bg-color);
+}
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background-color: transparent;
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}
+
+/* mkdocstrings signatures. */
+.md-typeset .doc-signature > pre {
+  border-radius: 0;
+}
+
+/* ================================================================== *
+ * Home hero — no panel, no gradient, no texture. Just the mark, the   *
+ * name, one sentence, and two links, separated from the page by a     *
+ * single rule. It inherits the page background, so it reads correctly *
+ * in both schemes. Markup lives in docs/index.md.                     *
+ * ================================================================== */
+/* Material reserves `padding-top: .6rem` plus a `.4rem` ::before spacer
+   above the first block of every page. The hero sets its own rhythm, so
+   reclaim that 1rem and let it sit right under the header. */
+.md-content__inner:has(> .site-hero) {
+  padding-top: 0;
+}
+.md-content__inner:has(> .site-hero)::before {
+  display: none;
+}
+
+/* One centre line for the whole hero.
+ *
+ * Every child used to centre itself — the lockup with `justify-content`, the
+ * paragraphs with `margin: auto`, the tab set with `width: 100%` — and four
+ * elements each solving the same problem separately is how they ended up on
+ * three different axes. A grid with one column and `justify-items: center`
+ * makes the alignment structural: a child cannot be off-centre, because it is
+ * not the child that decides. */
+.site-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+  /* 46rem, not 42: the install command is 79 characters, and at 42 it hit the
+     edge of the box and disappeared under the copy button. */
+  max-width: 46rem;
+  margin: 0 auto 2.25rem;
+  padding: 1.5rem 1rem 2rem;
+  border-bottom: 1px solid var(--site-border);
+}
+/* Text takes the reading measure; the command may use the full width. */
+.md-typeset .site-hero > * {
+  width: 100%;
+  max-width: 34rem;
+}
+.md-typeset .site-hero > .tabbed-set {
+  max-width: 100%;
+}
+
+/* Markdown wraps the logo and the button row in paragraphs of their
+   own; zero them so the spacing below is the only spacing there is.
+   The tagline rule that follows re-asserts its own margins. */
+.md-typeset .site-hero > p {
+  margin: 0;
+}
+
+/* The mark, on the title's own line, drawn from CSS rather than as an <img>.
+ *
+ * Two reasons it is a background and not an element. The URL resolves against
+ * this stylesheet, so it cannot break the way a page-relative `src` does when
+ * the page is served under a base path or without its trailing slash. And a
+ * pseudo-element always occupies its box: an `<img alt="">` that fails to load
+ * is removed from the layout entirely by Chrome and Safari, which is what made
+ * the mark's absence look like a design decision instead of a broken asset.
+ *
+ * One cut, because the site has one scheme — the header takes the same file. */
+.md-typeset .site-hero__lockup::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3.4rem;
+  height: 3.4rem;
+  background: url("../assets/logo-mark-inverse.svg") center / contain no-repeat;
+}
+
+/* Logo and wordmark on one line: `gap` rather than a margin, and the mark sized
+   in `em`, so the pair scales together and never drifts apart. */
+.md-typeset .site-hero__lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42em;
+  margin: 0;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--site-heading);
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Two paragraphs, two jobs. The tagline is the claim — one line, set larger.
+   The lede is the explanation, quieter and narrower. `text-wrap: balance` evens
+   the line lengths, which is what stops a centred block looking ragged. */
+.md-typeset .site-hero__tagline {
+  margin: 0.85rem 0 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--md-default-fg-color);
+  text-wrap: balance;
+}
+.md-typeset .site-hero__lede {
+  margin: 0.55rem 0 1.6rem;
+  max-width: 32rem;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--md-default-fg-color--light);
+  /* `balance`, not `pretty`: two centred lines of near-equal length. `pretty`
+     only protects the last line, which is what left "to in dollars." alone. */
+  text-wrap: balance;
+}
+
+
+.site-hero + h2 {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .site-hero {
+    padding: 1rem 1rem 1.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .md-typeset .site-hero__lockup { font-size: 1.8rem; }
+  .md-typeset .site-hero__lockup::before { width: 2.4rem; height: 2.4rem; }
+}
+
+/* ------------------------------------------------------------------ *
+ * Feature grid — flat bordered cards. Auto-fits 1–3 columns.          *
+ * ------------------------------------------------------------------ */
+.site-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1px;
+  margin: 1.5rem 0;
+  background: var(--site-border);
+  border: 1px solid var(--site-border);
+}
+.site-card {
+  padding: 1.1rem 1.25rem;
+  background: var(--md-default-bg-color);
+  transition: background-color 120ms ease;
+}
+.site-card:hover {
+  background-color: var(--site-hover);
+}
+.site-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--site-heading);
+}
+.site-card p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--md-default-fg-color--light);
+}
+.site-card a {
+  text-decoration: none;
+}
+.site-card a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ *
+ * The glyph field.                                                    *
+ *                                                                     *
+ * `docs/javascripts/glyphfield.js` inserts one fixed canvas as the     *
+ * first child of <body>. It is behind everything and it never sits     *
+ * under body text: the reading column and the header/footer carry      *
+ * opaque surfaces, so the field shows in the margins and every         *
+ * contrast pair measured above still holds.                            *
+ *                                                                     *
+ * The nav and the TOC deliberately do NOT get a surface. Their labels  *
+ * are short and set in Ink, and the field behind them is the point.    *
+ * What they do lose is Material's own fills — the nav title and the    *
+ * sticky TOC title are filled by the theme, and over a glyph field     *
+ * those read as stray cards.                                          *
+ * ------------------------------------------------------------------ */
+.site-glyphs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* The field is texture, not content. Turning it down here rather than in the
+     canvas keeps the glyphs crisp: fading the ink colour instead would put
+     antialiased grey on grey.
+     
+     0.17 puts a glyph pixel at #2b2b2b — 1.26:1 above the page: present, but
+     below the threshold where the eye starts trying to read the characters. The
+     ceiling is the faint-text role, which sits over these pixels and would break
+     its 3:1 floor around 0.36. */
+  opacity: 0.17;
+}
+
+.md-main,
+.md-container,
+.md-content {
+  background-color: transparent;
+}
+.md-content__inner {
+  /* No surface. The field runs under the text as well as beside it, which is
+     why the type roles below sit one step darker than the ramp's midpoints:
+     over a glyph pixel the old secondary step measured 3.84:1, under AA. */
+  padding-inline: 1.2rem;
+}
+.md-sidebar,
+.md-nav__title,
+.md-nav--primary .md-nav__title,
+.md-nav--secondary .md-nav__title,
+.md-nav__source {
+  background-color: transparent;
+  box-shadow: none;
+}
+.md-nav__link:hover,
+.md-nav__link--active,
+.md-nav__link--active:focus,
+.md-nav__link--active:hover,
+.md-nav__item .md-nav__link--active {
+  background-color: var(--site-hover);
+}
+
+/* Below Material's drawer breakpoint the content is full-bleed, so there is no
+   margin left for a field to show in — and a canvas churning behind an opaque
+   column is work with nothing to show for it. */
+@media screen and (max-width: 76.234375em) {
+  .site-glyphs {
+    display: none;
+  }
+}
+
+@media print {
+  .site-glyphs {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Justified body text.                                                *
+ *                                                                     *
+ * Justification without hyphenation is the version everyone regrets:   *
+ * this column is ~45rem, and forcing flush edges on it opens rivers of  *
+ * white space between words. `hyphens: auto` is what keeps the word     *
+ * spacing even — it works because MkDocs sets `<html lang="en">`, which *
+ * is the dictionary the browser hyphenates against.                    *
+ *                                                                     *
+ * Paragraphs and list items only. Table cells are too narrow to        *
+ * justify, headings are set ragged on purpose, and the hero is centred  *
+ * — so each of those is left alone below.                              *
+ * ------------------------------------------------------------------ */
+.md-typeset p,
+.md-typeset li {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  /* Keeps the last line of a paragraph from ending on a single short word.
+     Ignored where unsupported, which costs nothing. */
+  text-wrap: pretty;
+}
+
+/* The hero is centred, and its tagline is a paragraph — without this it would
+   inherit the justification and flush against a 30rem measure. */
+.md-typeset .site-hero__tagline,
+.md-typeset .site-hero p {
+  text-align: center;
+  hyphens: manual;
+}
+
+/* Cells, captions and the nav keep their own alignment: a justified table cell
+   is mostly gaps, and a hyphenated nav label is unreadable at a glance. */
+.md-typeset table th,
+.md-typeset table td,
+.md-typeset table td p,
+.md-typeset figcaption,
+.md-typeset .md-button {
+  text-align: left;
+  hyphens: manual;
+}
+.md-typeset table th {
+  text-align: left;
+}
+
+/* ------------------------------------------------------------------ *
+ * The demo recording on the home page.                                *
+ *                                                                     *
+ * Full measure, square, and framed by the same hairline as everything  *
+ * else. `height: auto` with an aspect ratio reserves the box before the *
+ * video's metadata arrives, so the page does not jump when it loads.   *
+ * ------------------------------------------------------------------ */
+.site-demo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 1.2rem 0 0.8rem;
+  border: 1px solid var(--site-border);
+  background-color: var(--md-default-bg-color);
+}
+
+/* Wider than the measure.
+ *
+ * Material caps `.md-grid` at 61rem, which is right for a line of text and too
+ * narrow for a 16:9 recording of a terminal — at the reading width the
+ * dashboard's own columns are unreadable.
+ *
+ * The obvious fix, a negative margin either side, is wrong: the sidebars are
+ * flex columns *inside* that grid, so a symmetric breakout does not reach the
+ * page margins, it reaches over the navigation and covers it. Instead the home
+ * page drops its table of contents (`hide: toc` in index.md's front matter),
+ * which hands ~12rem back to the content column, and the video simply fills it.
+ */
+.md-main:has(.site-hero) .md-content__inner {
+  /* The prose on this page keeps a readable measure even though the column got
+     wider; only the video is allowed the full width. */
+  max-width: none;
+}
+.md-main:has(.site-hero) .md-content__inner > :not(.site-demo):not(.site-hero) {
+  max-width: 45rem;
+  /* Centred, not just capped. Without this the hero centres itself in the wide
+     column while every section below it starts at the left edge, which reads as
+     the hero being misaligned when it is the only thing aligned. */
+  margin-inline: auto;
+}
+
+.md-typeset .site-hero__aside {
+  margin: 0.6rem 0 0;
+  max-width: 32rem;
+  font-size: 0.68rem;
+  color: var(--md-default-fg-color--lighter);
+  text-align: center;
+}
+
+/* No "edit this page" action on the landing page: it points at index.md, which
+   is hero markup, and it floats over the hero's top-right corner. */
+.md-main:has(.site-hero) .md-content__button {
+  display: none;
+}
+
+/* The install tabs in the hero.
+ *
+ * `pymdownx.tabbed` renders labels then panels; both inherit the hero's centring,
+ * which is wrong for a tab bar and wrong for a command. The set is centred as a
+ * box, and everything inside it is left-aligned. Width is set by the longest
+ * command plus the copy button, so the panels do not resize as tabs change. */
+.md-typeset .site-hero .tabbed-set {
+  /* Full measure, not `fit-content`. Sized to its labels, the set was narrower
+     than the command inside it: the panel overflowed to the right and the whole
+     block stopped sharing the hero's centre line. */
+  width: 100%;
+  text-align: left;
+}
+.md-typeset .site-hero .tabbed-labels {
+  font-size: 0.68rem;
+  /* Centred over the panel: the hero has one vertical axis and the tab bar is
+     narrower than the command below it, so aligning them left put two competing
+     left edges a few pixels apart. */
+  justify-content: center;
+}
+
+/* Why `min-width: 0` matters here: Material sets `.tabbed-content` to
+   `display: contents`, so each `.tabbed-block` is a flex item of the set — and a
+   flex item will not shrink below its min-content width. For a shell one-liner
+   that is the whole unbreakable line, so the set grew past the hero and stopped
+   sharing its centre. Zeroing it lets the panel take the width it is given. */
+.md-typeset .site-hero .tabbed-block,
+.md-typeset .site-hero .tabbed-set .highlight,
+.md-typeset .site-hero .tabbed-set pre {
+  min-width: 0;
+  /* `width`, not just `max-width`: without it each panel is sized by its own
+     command, so the box visibly shrank when you picked Cargo and grew again on
+     macOS. Every tab now shows the same box and only the text inside changes. */
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* The platform marks in the labels. Material renders an icon shortcode as an
+   inline SVG using `currentColor`, so they take the label's own ink — active and
+   inactive included — with no second colour to maintain. */
+.md-typeset .site-hero .tabbed-labels label .twemoji {
+  height: 0.95em;
+  width: 0.95em;
+  vertical-align: -0.14em;
+  margin-right: 0.12em;
+}
+.md-typeset .site-hero .tabbed-labels label .twemoji svg {
+  fill: currentColor;
+}
+.md-typeset .site-hero .tabbed-set pre {
+  overflow-x: auto;
+}
+.md-typeset .site-hero .tabbed-set pre > code {
+  font-size: 0.68rem;
+  /* Room for the copy button, which is positioned in the block's top-right. */
+  padding-right: 2.4rem;
+}

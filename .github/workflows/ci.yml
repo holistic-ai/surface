@@ -1,0 +1,109 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # The reduced build is a shipped configuration, so it gets linted like
+      # one. Two modules and a dozen fallback paths only exist here.
+      - run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo test --workspace
+
+      # The scan must degrade rather than fail on a machine with no AI tools,
+      # no browser profiles and no transcripts — which is exactly what a CI
+      # runner is. Empty output is a pass; a non-zero exit is not.
+      - name: smoke test the scan
+        run: cargo run -- --json --offline
+      - name: smoke test --check
+        run: cargo run -- --check --offline
+
+      # Proves the pure-Rust path still works, so `cargo install
+      # --no-default-features` keeps working for anyone without a C toolchain.
+      # Tested, not just built: the point of the flag is that the fallbacks
+      # behave, and only the tests check that.
+      - run: cargo test --workspace --no-default-features
+
+  # Bundled SQLite is compiled from C, so these two targets are the only ones
+  # that can fail for reasons the native builds never see. They are also the
+  # ones a release cannot do without — so they are proved here, on every push,
+  # rather than for the first time during a tag build.
+  cross:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: install aarch64 cross toolchain
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: install musl cross toolchain
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
+
+      - run: cargo build --locked --target ${{ matrix.target }}
+
+  # A minimum supported Rust version is a promise; this is the test of it.
+  # 1.88 is set by ratatui's `instability` proc-macro, via darling 0.23 — not by
+  # anything in src/, which needs 1.87 at most. So a dependency update can raise
+  # the real MSRV above this pin without a line of our code changing, and this
+  # job going red is how you find out. `--locked` keeps it honest: without it,
+  # cargo resolves past Cargo.lock and tests a different dependency set.
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked

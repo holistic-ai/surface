@@ -1,0 +1,184 @@
+# ==================================================================== #
+# surface — Material for MkDocs                                        #
+#                                                                      #
+# Layout, theme and CI wiring follow the docsforge template:           #
+#   https://github.com/kleyt0n/docsforge                               #
+#                                                                      #
+# surface is a Rust binary crate, so the Python half of that template   #
+# (mkdocstrings, a package under src/) is not here: the generated API   #
+# reference comes from rustdoc, via scripts/rustdoc_hook.py.            #
+# ==================================================================== #
+
+site_name: surface
+site_description: >-
+  What AI runs here, and what it costs. A single binary that scans your own
+  machine for AI tools, AI sites, tokens spent and dollars owed.
+site_author: surface contributors
+site_url: https://holistic-ai.github.io/surface/
+repo_name: holistic-ai/surface
+repo_url: https://github.com/holistic-ai/surface
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; surface contributors — Apache License 2.0
+
+docs_dir: docs
+
+# Files that live in docs/ but are not part of the site.
+#
+# SOURCES.md is provenance for the vendored tool logos: it belongs beside the
+# files it documents, but it is a note for whoever refreshes them rather than a
+# page — and an un-navigated page fails `--strict`.
+#
+# The other two are the masters the shipped assets were made from — a 53 MB
+# ScreenFlow-scale .mov and a 5.5 MB screenshot. The site serves the 1.8 MB MP4
+# and the 103 KB WebP that were encoded from them; without these lines the
+# masters get copied into the build and deployed to Pages as well, which is
+# 58 MB of nothing anyone downloads.
+exclude_docs: |
+  assets/tools/SOURCES.md
+  # Gitignored masters, so absent from a CI checkout — excluded because a local
+  # build would otherwise copy 5 MB of source PNG into the site.
+  assets/banner-1.png
+
+theme:
+  name: material
+  # Holds two overrides: `main.html`, which fills Material's `announce` block
+  # with the in-development banner, and `partials/header.html`, a copy of
+  # Material's own with the "Powered by Holistic AI" attribution after the title.
+  custom_dir: overrides
+  # The header is Ink in both schemes, so it takes the light-stroke
+  # cut of the mark. `favicon.svg` carries its own `prefers-color-scheme` rule,
+  # so it reads on either browser chrome.
+  logo: assets/logo-mark-inverse.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Google Sans Flex
+    code: Google Sans Code
+  # `custom` suppresses Material's built-in color rules, so the two-tone ramp
+  # in docs/stylesheets/extra.css owns every color on the site.
+  #
+  # One scheme: Ink page, Paper type. `slate` is Material's dark scheme, and the
+  # mapping for it lives in extra.css. No `toggle:`, so no scheme switch is
+  # rendered — the glyph field, the logo cut the header takes and every contrast
+  # pair in extra.css are all measured against the dark page.
+  palette:
+    scheme: slate
+    primary: custom
+    accent: custom
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.action.edit
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+# The glyph field behind the page, and the glyph transition between pages. It
+# reads its two colours out of the palette at runtime, so the scheme toggle
+# needs no second definition here.
+extra_javascript:
+  - javascripts/glyphfield.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/holistic-ai/surface
+    - icon: fontawesome/brands/rust
+      link: https://crates.io/crates/surface-cli
+  # Drop the "Made with Material for MkDocs" line. Set to `true` to keep it.
+  generator: false
+
+# Builds the rustdoc API reference and folds it into the site during every
+# build, so `mkdocs serve` serves it too. Requires the Rust toolchain.
+hooks:
+  - scripts/rustdoc_hook.py
+
+# Turn silent link rot into build failures under `mkdocs build --strict`.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      # No permalink anchors. `permalink: true` appends a pilcrow to every
+      # heading, which on the hero title renders at display size beside the
+      # wordmark. Heading `id`s are still emitted, so every deep link into the
+      # site keeps working — what goes is the clickable glyph, not the anchor.
+      permalink: false
+      title: On this page
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  # `base_path` lets docs pages pull in repo-root files with the `--8<--`
+  # include syntax, so the copies here never drift from the originals.
+  - pymdownx.snippets:
+      base_path: [., docs]
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+  # Renders an og:image per page, so links shared in Slack, Discord, or a
+  # tweet show the page title over the site's own palette instead of a blank
+  # card. Card generation needs Cairo and friends, which is a real install on
+  # macOS and Windows — so it is off locally and on in CI, where the images
+  # that actually ship are built. `mkdocs serve` stays a one-command affair.
+  - social:
+      cards: !ENV [CI, false]
+      cards_layout_options:
+        background_color: "#181818" # --site-c-ink
+        color: "#f5f5f0" # --site-c-paper
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Core concepts: getting-started/concepts.md
+  - User guide:
+      - The dashboard: guide/dashboard.md
+      - Configuration: guide/configuration.md
+      - Costs: guide/costs.md
+      - Privacy: guide/privacy.md
+      - JSON output: guide/json.md
+      - Building from source: guide/building.md
+      - Writing docs: guide/writing-docs.md
+  - Reference:
+      - Overview: reference/index.md
+      - CLI: reference/cli.md
+      - Coverage: reference/coverage.md
+      - Rust API: reference/rust.md
+      - Stability: reference/stability.md

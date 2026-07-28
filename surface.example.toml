@@ -1,0 +1,65 @@
+# surface configuration — every setting is optional.
+#
+# surface works with no config file at all; this documents the defaults. Copy it
+# to the path `surface --check` reports as the config directory, as `surface.toml`.
+#
+#   macOS    ~/Library/Application Support/ai.holistic.surface/surface.toml
+#   Linux    ~/.config/surface/surface.toml
+#   Windows  %APPDATA%\holistic\surface\config\surface.toml
+
+# ----------------------------------------------------------------- AI sites
+#
+# Read browser history for visits to known AI domains. Only the domain, a visit
+# count and a last-seen date are read: the domain filter runs inside SQLite, so
+# no URL, path, query string or page title is ever loaded — not even for the AI
+# domains themselves, let alone the rest of your browsing.
+[web]
+# Set false to skip browser history entirely. The Sites view then says it is
+# switched off rather than showing an empty list.
+scan_history = true
+
+# How recently a domain must have been visited to appear. Visit counts are the
+# browser's lifetime totals; this only decides which domains are listed.
+history_lookback_days = 30
+
+# Extra domains to treat as AI services — an internal model gateway, say.
+# Matched on the registrable host, so "models.corp.example" also covers
+# "www.models.corp.example" but never "notmodels.corp.example".
+extra_ai_domains = []
+
+# --------------------------------------------------------------- token usage
+#
+# Read the transcripts Claude Code, Codex and OpenCode already write, to count
+# tokens per day, tool and model. Message content is never read.
+[usage]
+# Set false to skip transcripts entirely.
+scan = true
+
+# How many days of daily totals to keep. Older days are pruned from the ledger,
+# along with their deduplication keys.
+window_days = 30
+
+# ---------------------------------------------------------------------- cost
+#
+# surface prices tokens at API rates. If you pay a flat subscription instead,
+# tell it what you actually pay and the Cost view will compare the two.
+[cost]
+# Monthly spend per tool, in USD. Keys are tool ids as they appear in the Usage
+# view: claude_code, codex, opencode, gemini_cli, ...
+#
+# Without an entry here a tool gets no subscription row at all — surface reads no
+# account state, so it cannot know your plan and will not guess one.
+[cost.subscriptions]
+# claude_code = 100.0
+# codex = 30.0
+
+# ------------------------------------------------------------ env overrides
+#
+# Environment variables win over this file, and are handy for one-off runs:
+#
+#   SURFACE_STATE_DIR              where the ledger and price cache live
+#   SURFACE_CONFIG_DIR             where this file is looked for
+#   SURFACE_SCAN_HISTORY=false     same as [web] scan_history
+#   SURFACE_HISTORY_LOOKBACK_DAYS  same as [web] history_lookback_days
+#   SURFACE_SCAN_USAGE=false       same as [usage] scan
+#   SURFACE_USAGE_WINDOW_DAYS      same as [usage] window_days
