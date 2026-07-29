@@ -30,15 +30,9 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          # Releases and crates.io 404 until the first release is published, and
-          # the Pages site 404s until the docs workflow has run once. Drop those
-          # excludes after the first release.
           args: >-
             --no-progress
             --max-concurrency 8
-            --exclude '^https://github\.com/holistic-ai/surface/releases'
-            --exclude '^https://crates\.io/crates/surface-cli'
-            --exclude '^https://holistic-ai\.github\.io/surface'
             --exclude-path target
             --exclude-path site
             './**/*.md'
