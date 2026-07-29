@@ -51,7 +51,10 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
   Write-Host "surface $tag ($target)"
   Invoke-WebRequest "$base/$name.zip" -OutFile "$tmp\$name.zip" -UseBasicParsing
-  $sums = (Invoke-WebRequest "$base/SHA256SUMS" -UseBasicParsing).Content
+  # -OutFile, not .Content: GitHub serves SHA256SUMS as application/octet-stream,
+  # and Windows PowerShell 5.1 hands back a byte[] rather than a string for that.
+  Invoke-WebRequest "$base/SHA256SUMS" -OutFile "$tmp\SHA256SUMS" -UseBasicParsing
+  $sums = Get-Content "$tmp\SHA256SUMS" -Raw
 
   $line = $sums -split "`n" | Where-Object { $_ -match [regex]::Escape("$name.zip") } | Select-Object -First 1
   if (-not $line) { throw "no checksum for $name.zip in SHA256SUMS" }
