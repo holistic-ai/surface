@@ -1,0 +1,4 @@
+# Auto-requests review on every pull request. Advisory, not blocking: the
+# ruleset on main requires one approval from anyone, not from an owner
+# specifically. Flip `require_code_owner_review` on the ruleset to change that.
+* @kleyt0n @umar-hai @as-koshiyama
