@@ -104,13 +104,20 @@ timed because nothing ran.
 |---|---|
 | <kbd>tab</kbd>, <kbd>→</kbd>, <kbd>l</kbd> | Next view |
 | <kbd>shift-tab</kbd>, <kbd>←</kbd>, <kbd>h</kbd> | Previous view |
-| <kbd>1</kbd>–<kbd>6</kbd> | Jump to Overview, Tools, Sites, Usage, Cost, Projects |
+| <kbd>1</kbd>–<kbd>6</kbd> | Jump to a view |
 | <kbd>j</kbd>/<kbd>k</kbd>, <kbd>↓</kbd>/<kbd>↑</kbd> | Move the selection |
 | <kbd>g</kbd>/<kbd>G</kbd>, <kbd>home</kbd>/<kbd>end</kbd> | First / last row |
-| <kbd>page up</kbd>/<kbd>page down</kbd> | Ten rows |
-| <kbd>u</kbd> | Overview chart: spend or tokens |
-| <kbd>w</kbd> | Regroup charts by day, week or month |
-| <kbd>?</kbd> | Help overlay |
+| <kbd>page up</kbd>/<kbd>page down</kbd> | Move ten rows |
+| Mouse wheel | Move three rows |
+| Click a view in the sidebar | Jump to it |
+| Click a table row | Select it, and give its pane the keyboard |
+| <kbd>enter</kbd> | Switch pane, on a view that has two |
+| <kbd>d</kbd> | Token detail line under each row, on and off |
+| <kbd>u</kbd> | Switch the Overview chart between spend and tokens |
+| <kbd>[</kbd>/<kbd>]</kbd> | Move the chart cursor one bucket |
+| <kbd>backspace</kbd> | Drop the chart cursor |
+| <kbd>w</kbd> | Regroup the charts by day, week or month |
+| <kbd>?</kbd> | Help overlay (any key closes it) |
 | <kbd>q</kbd>, <kbd>esc</kbd>, <kbd>ctrl-c</kbd> | Quit |
 
 Full descriptions in [The dashboard](../guide/dashboard.md#keys).
