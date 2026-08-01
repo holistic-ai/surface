@@ -47,10 +47,11 @@ window_days = 30
 # Monthly spend per tool, in USD. Keys are tool ids as they appear in the Usage
 # view: claude_code, codex, opencode, gemini_cli, ...
 #
-# Without an entry here, a tool falls back to the plan its own transcripts name,
-# priced at that plan's list rate and marked an estimate. A tool naming no plan
-# gets no row at all — surface reads no account state, so a plan it is not told
-# about is never guessed. An entry here always wins over a detected plan.
+# Without an entry here, a tool falls back to the plan it names itself — in its
+# account file (~/.claude.json, ~/.codex/auth.json) or beside the token counts
+# in its transcripts — priced at that plan's list rate and marked an estimate.
+# Only the plan's name is read from those files, never the credentials beside
+# it. A tool naming no plan gets no row at all, and an entry here always wins.
 [cost.subscriptions]
 # claude_code = 100.0
 # codex = 30.0

@@ -17,6 +17,16 @@ publishing empty notes.
 
 ### Added
 
+- **Tools name the plan they are signed into.** The Tools view gains a PLAN
+  column, and the SPEND card and Cost view price it: Claude Code's
+  `~/.claude.json` names the seat (`team_tier_1`, or the rate-limit tier for
+  personal plans), and Codex's `~/.codex/auth.json` token payload names
+  `chatgpt_plan_type`. The account file — what the tool is on *now* — beats
+  the plan its transcripts name, and `[cost.subscriptions]` beats both. Only
+  the plan's name is read from those files, never the credentials beside it,
+  and nothing is fetched. `--json` carries it as `tools.list[].plan` with its
+  source.
+
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers

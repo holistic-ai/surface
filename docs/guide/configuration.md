@@ -107,11 +107,13 @@ codex = 30.0
 Keys are tool ids as they appear in the Usage view — `claude_code`, `codex`,
 `opencode`, `gemini_cli`, … — and values are **monthly** USD.
 
-A tool with no entry falls back to the plan its own transcripts name, if any —
-Codex writes one beside its token counts — priced at that plan's published list
-rate. surface reads no account state, so a tool that names no plan and has no
-entry gets no row rather than a guess. A configured figure always wins and is
-used as given; a list-price fallback is labelled `est` wherever it is shown.
+A tool with no entry falls back to the plan it names itself, if any — its
+account file first (`~/.claude.json`, `~/.codex/auth.json`), its transcripts
+otherwise — priced at that plan's published list rate. Only the plan's name is
+read from those files, never the credentials beside it, and a tool that names
+no plan and has no entry gets no row rather than a guess. A configured figure
+always wins and is used as given; a list-price fallback is labelled `est`
+wherever it is shown.
 
 ## Environment variables
 

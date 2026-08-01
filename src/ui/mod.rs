@@ -826,11 +826,19 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
             } else {
                 Span::styled("\u{2013}", Style::default().fg(theme::DIM))
             };
+            // The raw slug the tool wrote (`team_tier_1`), not a prettied
+            // name: the same string [cost.subscriptions] docs and the price
+            // table speak, so a reader can act on what they see.
+            let plan = match &t.plan {
+                Some(plan) => Span::styled(plan.clone(), Style::default().fg(theme::MUTED)),
+                None => Span::styled("\u{2013}", Style::default().fg(theme::DIM)),
+            };
             Row::new(vec![
                 Cell::from(t.name),
                 Cell::from(t.vendor),
                 Cell::from(t.kind),
                 Cell::from(Line::from(flag)),
+                Cell::from(Line::from(plan)),
                 Cell::from(truncate(&t.evidence.join(", "), 60)),
             ])
         })
@@ -843,10 +851,13 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
             Constraint::Length(14),
             Constraint::Length(18),
             Constraint::Length(14),
+            Constraint::Length(22),
             Constraint::Min(20),
         ],
     )
-    .header(header(&["TOOL", "VENDOR", "KIND", "CAN ACT", "FOUND BY"]))
+    .header(header(&[
+        "TOOL", "VENDOR", "KIND", "CAN ACT", "PLAN", "FOUND BY",
+    ]))
     .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     .block(panel(&format!(
         "{} AI tools \u{b7} {} can act on this machine",
@@ -2040,6 +2051,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2117,6 +2129,7 @@ mod tests {
             #[cfg(feature = "sqlite")]
             sites: Default::default(),
             usage: Default::default(),
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2296,7 +2309,6 @@ mod tests {
     fn a_detected_plan_prices_the_spend_card_as_an_estimate() {
         let mut ledger = Ledger::default();
         ledger.add("2026-07-26", "codex", "gpt-5.6", &tokens(1_000, 2_000));
-        ledger.observe_plan("codex", "team");
 
         let scan = Scan {
             tools_summary: Default::default(),
@@ -2308,6 +2320,14 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            // As `scan::run` would have merged it, from either source.
+            plans: std::collections::BTreeMap::from([(
+                "codex".to_string(),
+                crate::scan::plans::DetectedPlan {
+                    plan: "team".to_string(),
+                    source: crate::scan::plans::PlanSource::Transcript,
+                },
+            )]),
             failed: Vec::new(),
             demo: false,
         };
@@ -2354,6 +2374,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2377,6 +2398,47 @@ mod tests {
             "configured is not an estimate"
         );
         assert!(out.contains("1 tool(s) unpriced"));
+    }
+
+    /// The Tools view names the plan each tool is signed into, as the raw
+    /// slug the tool wrote — and a tool naming none shows a dash, not a guess.
+    #[test]
+    fn the_tools_view_names_the_plan_a_tool_is_on() {
+        let detected: Vec<tooling::Detected> = tooling::AI_TOOLS
+            .iter()
+            .take(3)
+            .map(|tool| tooling::Detected {
+                tool,
+                evidence: vec!["config:~/.x".to_string()],
+            })
+            .collect();
+        let scan = Scan {
+            tools_summary: tooling::summarise(&detected),
+            tools: detected,
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: Default::default(),
+            plans: std::collections::BTreeMap::from([(
+                "claude_code".to_string(),
+                crate::scan::plans::DetectedPlan {
+                    plan: "team_tier_1".to_string(),
+                    source: crate::scan::plans::PlanSource::Account,
+                },
+            )]),
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            CostConfig::default(),
+        );
+        app.set_tab(Tab::Tools);
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("PLAN"), "the plan column header");
+        assert!(out.contains("team_tier_1"), "the slug the tool wrote");
     }
 
     #[test]
@@ -2471,6 +2533,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2522,6 +2585,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2973,6 +3037,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3250,6 +3315,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3328,6 +3394,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3351,6 +3418,7 @@ mod tests {
             #[cfg(feature = "sqlite")]
             sites: Default::default(),
             usage: Default::default(),
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };

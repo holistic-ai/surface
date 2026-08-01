@@ -378,6 +378,17 @@ fn print_json(scan: &scan::Scan, timings: &scan::Timings, prices: &pricing::Pric
                 "vendor": d.tool.vendor,
                 "kind": d.tool.kind,
                 "autonomous": d.tool.autonomous,
+                // The plan slug the tool itself names, and where it said so
+                // ("account" or "transcript"). Null when it names none.
+                "plan": scan.plans
+                    .get(crate::scan::plans::usage_tool_id(d.tool.id))
+                    .map(|p| json!({
+                        "name": p.plan,
+                        "source": match p.source {
+                            crate::scan::plans::PlanSource::Account => "account",
+                            crate::scan::plans::PlanSource::Transcript => "transcript",
+                        },
+                    })),
                 "evidence": d.evidence,
             })).collect::<Vec<_>>(),
         },

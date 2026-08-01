@@ -12,11 +12,13 @@
 //! release profile deliberately does not set `panic = "abort"`.
 
 pub mod apps;
+pub mod plans;
 #[cfg(feature = "sqlite")]
 pub mod sites;
 pub mod tooling;
 pub mod usage;
 
+use std::collections::BTreeMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::time::Instant;
@@ -32,6 +34,9 @@ pub struct Scan {
     #[cfg(feature = "sqlite")]
     pub sites: sites::Sites,
     pub usage: usage::Usage,
+    /// The subscription plan each tool is on, keyed by usage tool id. Account
+    /// files first, transcripts filling the gaps — see [`plans`].
+    pub plans: BTreeMap<String, plans::DetectedPlan>,
     /// Sections that panicked, by name. Empty is the normal case.
     pub failed: Vec<&'static str>,
     /// Built by [`crate::demo`] rather than read off this machine. Never true
@@ -85,6 +90,10 @@ pub fn run(config: &Config, state_dir: &Path) -> (Scan, Timings) {
     .unwrap_or_default();
     timings.usage_ms = mark.elapsed().as_millis();
 
+    // Two file reads; not worth a timing of its own.
+    let mut plans = section("plans", &mut failed, plans::scan).unwrap_or_default();
+    plans::merge_transcripts(&mut plans, &usage.ledger.plans);
+
     timings.total_ms = started.elapsed().as_millis();
 
     (
@@ -94,6 +103,7 @@ pub fn run(config: &Config, state_dir: &Path) -> (Scan, Timings) {
             #[cfg(feature = "sqlite")]
             sites,
             usage,
+            plans,
             failed,
             demo: false,
         },
