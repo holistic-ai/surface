@@ -1317,8 +1317,9 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
 
     // Side by side, both tables give up columns: 88 columns of project table and
     // 96 of session table cannot share 100. The projects table keeps the three
-    // figures a ranking is read for — name, tokens, money — and sheds the rest,
-    // which the breakdown beside it carries anyway.
+    // figures a ranking is read for — name, tokens, money — plus the tools that
+    // produced them, and sheds the rest, which the breakdown beside it carries
+    // anyway.
     let (table_area, session_area) = if beside {
         let split = Layout::default()
             .direction(Direction::Horizontal)
@@ -1329,12 +1330,9 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
         (rows[1], None)
     };
 
-    let peak = repos.iter().map(|r| r.tokens).max().unwrap_or(1).max(1);
-
     let table_rows: Vec<Row> = repos
         .iter()
         .map(|r| {
-            let bar = ((r.tokens as f64 / peak as f64) * 12.0).round() as usize;
             // A repo with unpriced models under it has a floor, not a total.
             let (amount, style) = if r.unpriced > 0 {
                 (
@@ -1347,12 +1345,9 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
             let name = Cell::from(truncate(&r.repo, PROJECT_W));
             let tokens = Cell::from(theme::compact(r.tokens));
             let money = Cell::from(Line::from(Span::styled(amount, style)));
-            let share = Cell::from(Line::from(Span::styled(
-                "\u{2588}".repeat(bar),
-                Style::default().fg(theme::SEQUENTIAL),
-            )));
+            let tools = Cell::from(tools_line(app.series(), &r.tools));
             if beside {
-                Row::new(vec![name, tokens, money, share])
+                Row::new(vec![name, tokens, money, tools])
             } else {
                 Row::new(vec![
                     name,
@@ -1363,10 +1358,7 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
                         r.last_day.clone(),
                         Style::default().fg(theme::MUTED),
                     ))),
-                    Cell::from(Line::from(Span::styled(
-                        "\u{2588}".repeat(bar),
-                        Style::default().fg(theme::SEQUENTIAL),
-                    ))),
+                    tools,
                 ])
             }
         })
@@ -1389,11 +1381,11 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
         });
     }
 
-    // The share bar takes the slack, not the name column: a fixed name column
-    // keeps the figures in the same place on a wide terminal as on a narrow one.
+    // The tools column takes the slack, not the name column: a fixed name
+    // column keeps the figures in the same place on a wide terminal as on a
+    // narrow one, and a tool list that runs out of room clips names rather
+    // than moving money.
     let (widths, labels) = if beside {
-        // Same doctrine as the wide table: the name column is fixed and the share
-        // bar takes the slack, so the figures do not wander as the split moves.
         (
             vec![
                 Constraint::Length(PROJECT_W as u16 + 2),
@@ -1401,7 +1393,7 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
                 Constraint::Length(12),
                 Constraint::Min(4),
             ],
-            vec!["PROJECT", "TOKENS", "COST", ""],
+            vec!["PROJECT", "TOKENS", "COST", "TOOLS"],
         )
     } else {
         (
@@ -1413,7 +1405,14 @@ fn draw_projects(frame: &mut Frame, area: Rect, app: &App) -> (Option<Rows>, Opt
                 Constraint::Length(12),
                 Constraint::Min(14),
             ],
-            vec!["PROJECT", "TOKENS", "MESSAGES", "COST", "LAST USED", ""],
+            vec![
+                "PROJECT",
+                "TOKENS",
+                "MESSAGES",
+                "COST",
+                "LAST USED",
+                "TOOLS",
+            ],
         )
     };
 
@@ -1700,6 +1699,30 @@ fn series_dot(series: &[String], tool: &str) -> Span<'static> {
         }
         None => Span::styled("\u{b7} ", Style::default().fg(theme::MUTED)),
     }
+}
+
+/// The tools that ran in a repository, each behind its series dot — the same
+/// texture the usage chart and the session breakdown key that tool by, so a
+/// row and a segment are visibly one thing. A repo whose sessions are all
+/// pinned to another repository (session attribution is first-wins) shows a
+/// muted `·`, not nothing: an empty cell would read as "no tool", which is
+/// never true.
+fn tools_line(series: &[String], tools: &[String]) -> Line<'static> {
+    if tools.is_empty() {
+        return Line::from(Span::styled("\u{b7}", Style::default().fg(theme::MUTED)));
+    }
+    let mut spans = Vec::new();
+    for tool in tools {
+        if !spans.is_empty() {
+            spans.push(Span::raw("  "));
+        }
+        spans.push(series_dot(series, tool));
+        spans.push(Span::styled(
+            tool.clone(),
+            Style::default().fg(theme::MUTED),
+        ));
+    }
+    Line::from(spans)
 }
 
 /// The token split, for the detail line under a row's name.
@@ -2198,6 +2221,58 @@ mod tests {
         for column in ["PROJECT", "TOKENS", "COST"] {
             assert!(beside.contains(column), "the narrow table dropped {column}");
         }
+    }
+
+    /// The tools column is what tells `HAI Neo` under Codex apart from
+    /// `owner/hai-neo` under Claude Code — nothing else on the row can.
+    #[test]
+    fn the_projects_table_names_the_tool_behind_each_repository() {
+        let mut ledger = Ledger::default();
+        let t = tokens(1_000, 2_000);
+        // Session *metadata* only, no session token rows: the breakdown pane
+        // then stands down at any width, so the tool must be readable from
+        // the table itself.
+        ledger.add("2026-07-26", "claude_code", "claude-opus-5", &t);
+        ledger.add_project("2026-07-26", "acme/widgets", "claude-opus-5", &t);
+        ledger.observe_session("a", "claude_code", "acme/widgets", None);
+        ledger.add("2026-07-27", "codex", "gpt-5.6", &t);
+        ledger.add_project("2026-07-27", "other/thing", "gpt-5.6", &t);
+        ledger.observe_session("z", "codex", "other/thing", None);
+
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            CostConfig::default(),
+        );
+        app.set_tab(Tab::Projects);
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("TOOLS"), "the tools column header");
+        assert!(out.contains("claude_code"), "the Claude Code repo says so");
+        assert!(out.contains("codex"), "the Codex repo says so");
+    }
+
+    /// Beside the breakdown the column survives, because that is the layout a
+    /// wide terminal actually shows.
+    #[test]
+    fn the_tools_column_survives_the_side_by_side_split() {
+        let app = two_projects_with_sessions();
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("TOOLS"), "the tools column header");
     }
 
     #[test]

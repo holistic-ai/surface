@@ -22,6 +22,15 @@ publishing empty notes.
   arithmetic, not a bill, and the old line said nothing the absence of `≥`
   did not already say. With unpriced models the `▲ N model(s) unpriced`
   caveat still takes the line.
+  
+### Added
+
+- **The Projects view names the tools behind each repository.** Each project
+  row ends in a `TOOLS` column listing the tools whose sessions ran there,
+  behind the same series texture the usage chart keys that tool by — so two
+  rows like `HAI Neo` and `owner/hai-neo` finally read as "the Codex checkout"
+  and "the Claude Code one". It replaces the share bar, which repeated TOKENS
+  as decoration.
 
 ## [0.1.0] - 2026-07-28
 
