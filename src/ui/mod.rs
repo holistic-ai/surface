@@ -495,10 +495,14 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
             trend.days
         ));
     }
+    // The figure is list-rate arithmetic, not a bill, and the card must say so:
+    // "SPEND" alone reads as money out the door, which for a subscription user
+    // it is not. With unpriced models the caveat line matters more — and `≥` on
+    // the figure plus the amber are already carrying "estimate".
     spend_detail.push(if unpriced > 0 {
         format!("\u{25b2} {unpriced} model(s) unpriced")
     } else {
-        "all models priced".to_string()
+        "at API list rates".to_string()
     });
 
     card(
@@ -2147,6 +2151,32 @@ mod tests {
         let out = rendered(&app, 120, 40);
         assert!(out.contains("nothing can be costed"));
         assert!(!out.contains("$0.00"));
+    }
+
+    /// The SPEND card names what its dollars are: list-rate arithmetic when
+    /// every model is priced, the unpriced caveat when one is not — one line,
+    /// never both.
+    #[test]
+    fn the_spend_card_qualifies_its_dollars() {
+        let all_priced = crate::pricing::Prices::parse(
+            r#"{"claude-opus-5": {"input_cost_per_token": 0.000005,
+                                  "output_cost_per_token": 0.000025},
+                "gpt-5.6-sol": {"input_cost_per_token": 0.000001,
+                                "output_cost_per_token": 0.000004}}"#,
+        )
+        .expect("a two-model table parses");
+        let mut app = populated_with(all_priced);
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 120, 40);
+        assert!(out.contains("at API list rates"), "the qualifier line");
+        assert!(!out.contains("unpriced"), "nothing is unpriced");
+
+        // One of the fixture's two models is missing from this table.
+        let mut app = populated_with(prices_for_a_model());
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 120, 40);
+        assert!(out.contains("unpriced"), "the caveat takes the line");
+        assert!(!out.contains("at API list rates"), "one line, never both");
     }
 
     #[test]

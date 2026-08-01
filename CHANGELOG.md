@@ -15,6 +15,14 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Changed
+
+- **The SPEND card says what its dollars are.** Its last qualifier now reads
+  `at API list rates` instead of `all models priced` — the figure is list-rate
+  arithmetic, not a bill, and the old line said nothing the absence of `≥`
+  did not already say. With unpriced models the `▲ N model(s) unpriced`
+  caveat still takes the line.
+
 ## [0.1.0] - 2026-07-28
 
 First release.
