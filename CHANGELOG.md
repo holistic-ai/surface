@@ -17,6 +17,15 @@ publishing empty notes.
 
 ### Added
 
+- **`[usage.repo_aliases]` folds two names for one project into one row.** A
+  checkout with an `origin` remote reports `owner/name`; a copy of the same
+  code with no remote reports its folder basename; and surface never guesses
+  the two are the same project, because folding spend together on a string
+  resemblance is misattribution. The operator declares it instead —
+  `"HAI Neo" = "holistic-ai/hai-neo"` — and the grouping applies when the
+  ledger is read, never to what is stored, so history regroups retroactively
+  and a wrong alias is one edit away from undone. Project totals, daily rows
+  and the session breakdown all follow the alias.
 - **Tools name the plan they are signed into, and what the seat costs.** The
   Tools view gains PLAN and `$/MO` columns, and the SPEND card and Cost view
   price the same figure: Claude Code's `~/.claude.json` names the seat —
