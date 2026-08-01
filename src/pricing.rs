@@ -40,12 +40,16 @@ pub const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const MAX_DOWNLOAD_BYTES: u64 = 32 * 1024 * 1024;
 
 /// USD per single token, by kind.
+///
+/// The cache rates are `None` when the table omits them, which is not the
+/// same as a listed `0.0`: an absent rate prices as a floor, a zero rate
+/// prices as zero because the table said so.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct PerToken {
     pub input: f64,
     pub output: f64,
-    pub cache_read: f64,
-    pub cache_creation: f64,
+    pub cache_read: Option<f64>,
+    pub cache_creation: Option<f64>,
 }
 
 /// What a model's usage cost, and whether we could price it at all.
@@ -53,6 +57,9 @@ pub struct PerToken {
 pub enum Cost {
     /// Priced from the table.
     Known(f64),
+    /// Priced, but the table omitted a rate for a token kind this usage has,
+    /// so the real figure is at least this. Never presented as exact.
+    Floor(f64),
     /// Runs locally, so there is no per-token charge.
     Local,
     /// Not in the table — the cost is unknown, which is not the same as zero.
@@ -62,13 +69,24 @@ pub enum Cost {
 impl Cost {
     pub fn usd(&self) -> f64 {
         match self {
-            Cost::Known(v) => *v,
+            Cost::Known(v) | Cost::Floor(v) => *v,
             Cost::Local | Cost::Unpriced => 0.0,
         }
     }
 
+    /// Strictly unknown — a floor is *not* unpriced, its dollars are real.
+    /// The distinction the tests assert; production paths ask
+    /// [`Cost::not_fully_priced`] instead, which spans both.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn is_unpriced(&self) -> bool {
         matches!(self, Cost::Unpriced)
+    }
+
+    /// Whether a total above this figure is a floor rather than a sum:
+    /// unpriced contributes an unknown amount, a floor an underestimate.
+    /// This is the test every `≥` marker keys off.
+    pub fn not_fully_priced(&self) -> bool {
+        matches!(self, Cost::Unpriced | Cost::Floor(_))
     }
 }
 
@@ -107,6 +125,16 @@ impl Prices {
     }
 
     /// Cost of one model's tokens.
+    ///
+    /// A missing cache rate never bills as a silent zero inside a `Known`
+    /// figure — that was the one arithmetic lie this tool must not tell,
+    /// hiding in its headline number. Cache creation falls back to the input
+    /// rate, which understates it (providers that publish a write rate set it
+    /// *above* input); cache reads bill at zero, because their real rate is
+    /// *below* input and a fallback would overstate. Both directions
+    /// understate, so the result is [`Cost::Floor`], and only when the usage
+    /// actually has tokens of the rateless kind — a missing rate for tokens
+    /// that do not exist costs nothing and stays exact.
     pub fn cost(&self, model: &str, tokens: &crate::ledger::Tokens) -> Cost {
         if is_local_model(model) {
             return Cost::Local;
@@ -115,15 +143,30 @@ impl Prices {
             return Cost::Unpriced;
         };
 
-        Cost::Known(
-            tokens.input as f64 * price.input
-                + tokens.output as f64 * price.output
-                + tokens.cache_read as f64 * price.cache_read
-                + tokens.cache_creation as f64 * price.cache_creation
-                // Reasoning tokens are billed as output everywhere that
-                // distinguishes them.
-                + tokens.reasoning as f64 * price.output,
-        )
+        let mut floor = false;
+        let mut rate = |listed: Option<f64>, kind_tokens: u64, fallback: f64| match listed {
+            Some(rate) => rate,
+            None => {
+                floor |= kind_tokens > 0;
+                fallback
+            }
+        };
+        let cache_read = rate(price.cache_read, tokens.cache_read, 0.0);
+        let cache_creation = rate(price.cache_creation, tokens.cache_creation, price.input);
+
+        let usd = tokens.input as f64 * price.input
+            + tokens.output as f64 * price.output
+            + tokens.cache_read as f64 * cache_read
+            + tokens.cache_creation as f64 * cache_creation
+            // Reasoning tokens are billed as output everywhere that
+            // distinguishes them.
+            + tokens.reasoning as f64 * price.output;
+
+        if floor {
+            Cost::Floor(usd)
+        } else {
+            Cost::Known(usd)
+        }
     }
 
     /// Parse LiteLLM's table.
@@ -136,16 +179,23 @@ impl Prices {
             if name == "sample_spec" {
                 continue;
             }
-            let num = |key: &str| entry.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let num = |key: &str| entry.get(key).and_then(|v| v.as_f64());
             let price = PerToken {
-                input: num("input_cost_per_token"),
-                output: num("output_cost_per_token"),
+                input: num("input_cost_per_token").unwrap_or(0.0),
+                output: num("output_cost_per_token").unwrap_or(0.0),
+                // Absent stays absent: a missing cache rate prices as a
+                // floor, where a listed zero prices as zero.
                 cache_read: num("cache_read_input_token_cost"),
                 cache_creation: num("cache_creation_input_token_cost"),
             };
             // Entries with no cost at all are embeddings, moderation and the
             // like; keeping them would let a suffix match find a zero price.
-            if price.input == 0.0 && price.output == 0.0 {
+            // A cache rate alone is a cost, so a cache-only entry survives.
+            if price.input == 0.0
+                && price.output == 0.0
+                && price.cache_read.unwrap_or(0.0) == 0.0
+                && price.cache_creation.unwrap_or(0.0) == 0.0
+            {
                 continue;
             }
             models.insert(name, price);
@@ -305,6 +355,9 @@ mod tests {
                 "input_cost_per_token": 1e-06,
                 "output_cost_per_token": 2e-06
               },
+              "cache-desk": {
+                "cache_read_input_token_cost": 5e-07
+              },
               "text-embedding-3-small": {
                 "input_cost_per_token": 0.0,
                 "output_cost_per_token": 0.0
@@ -329,8 +382,12 @@ mod tests {
         let opus = prices.lookup("claude-opus-4-8").unwrap();
         assert_eq!(opus.input, 5e-06);
         assert_eq!(opus.output, 2.5e-05);
-        assert_eq!(opus.cache_read, 5e-07);
-        assert_eq!(opus.cache_creation, 6.25e-06);
+        assert_eq!(opus.cache_read, Some(5e-07));
+        assert_eq!(opus.cache_creation, Some(6.25e-06));
+        // Absent keys stay absent rather than becoming a free rate.
+        let glm = prices.lookup("glm-5.2").unwrap();
+        assert_eq!(glm.cache_read, None);
+        assert_eq!(glm.cache_creation, None);
     }
 
     #[test]
@@ -339,7 +396,45 @@ mod tests {
         assert!(prices.lookup("sample_spec").is_none());
         // Otherwise a suffix match could find a free price for a real model.
         assert!(prices.lookup("text-embedding-3-small").is_none());
-        assert_eq!(prices.len(), 2);
+        assert_eq!(prices.len(), 3);
+    }
+
+    /// The acceptance test from the issue: cache tokens against an entry with
+    /// input and output rates only must be neither zero nor exact.
+    #[test]
+    fn missing_cache_rates_price_as_a_floor_never_a_silent_zero() {
+        let prices = table();
+        let usage = Tokens {
+            input: 1_000_000,
+            cache_read: 1_000_000,
+            cache_creation: 1_000_000,
+            ..Default::default()
+        };
+
+        let cost = prices.cost("glm-5.2", &usage);
+
+        // Input at its rate, cache creation at the input rate (providers that
+        // publish a write rate set it above input, so this understates), and
+        // cache reads at zero (their real rate sits below input, so a
+        // fallback would overstate). Both directions understate: a floor.
+        assert_eq!(cost, Cost::Floor(2.0));
+        assert!(cost.usd() > 0.0, "not a silent zero");
+        assert!(cost.not_fully_priced(), "not presented as exact");
+        assert!(!cost.is_unpriced(), "the dollars are real, just a minimum");
+    }
+
+    #[test]
+    fn a_missing_cache_rate_with_no_cache_tokens_stays_exact() {
+        // The rate for tokens that do not exist costs nothing.
+        let cost = table().cost("glm-5.2", &tokens(1_000_000, 0, 0));
+        assert_eq!(cost, Cost::Known(1.0));
+    }
+
+    #[test]
+    fn a_cache_only_entry_survives_the_parse_and_prices_exactly() {
+        // Dropping it with the embeddings would make its usage unpriced.
+        let cost = table().cost("cache-desk", &tokens(0, 0, 1_000_000));
+        assert_eq!(cost, Cost::Known(0.5));
     }
 
     #[test]
