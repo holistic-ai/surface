@@ -75,10 +75,13 @@ claude_code = 100.0
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-Without an entry, a tool gets no subscription row. surface reads no account state
-— no plan, no billing API, no session token — so it cannot know what you pay and
-will not guess. Where a figure comes from a published list price rather than your
-config, it is suffixed `est`.
+Without an entry, one more source is tried before giving up: the plan a tool's
+own transcripts name. Codex writes `rate_limits.plan_type` beside its token
+counts, and a plan named there is priced at its published list rate — suffixed
+`est` in the table and marked `≈` on the SPEND card, because a list price is an
+estimate of your bill, not your bill. surface still reads no account state — no
+billing API, no session token — so a tool that names no plan gets no row rather
+than a guess, and a configured entry always beats a detected plan.
 
 ## How each token kind is billed
 

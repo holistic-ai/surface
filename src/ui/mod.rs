@@ -462,8 +462,10 @@ fn draw_rankings(frame: &mut Frame, area: Rect, app: &App) {
 fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
     let cards = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Ratio(1, 4); 4])
+        .constraints([Constraint::Ratio(1, 5); 5])
         .split(area);
+
+    draw_spend_card(frame, cards[0], app);
 
     let unpriced = app.unpriced_models();
     // A total with nothing to compare it against is the least useful shape a cost
@@ -503,8 +505,8 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
 
     card(
         frame,
-        cards[0],
-        "spend",
+        cards[1],
+        "token cost",
         &format_usd(app.total_usd()),
         &spend_detail,
         if unpriced > 0 {
@@ -516,7 +518,7 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
 
     card(
         frame,
-        cards[1],
+        cards[2],
         "tokens",
         &theme::compact(app.total_tokens()),
         &[
@@ -531,7 +533,7 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
     let s = &app.scan.tools_summary;
     card(
         frame,
-        cards[2],
+        cards[3],
         "tools",
         &s.detected.to_string(),
         &[
@@ -549,7 +551,78 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
         },
     );
 
-    draw_sites_card(frame, cards[3], app);
+    draw_sites_card(frame, cards[4], app);
+}
+
+/// What the seats actually cost, as far as that can be known — against the
+/// token arithmetic on the TOKEN COST card beside it.
+///
+/// Three states, in the house grammar: a configured figure is plain, a
+/// detected plan's list price is `≈` an estimate, a tool with usage but no
+/// figure makes the total `≥` a floor — and knowing nothing shows `–` and
+/// says how to fix it, never a guess.
+fn draw_spend_card(frame: &mut Frame, area: Rect, app: &App) {
+    let Some(estimate) = app.spend_estimate() else {
+        // Card lines have ~24 columns on a 150-column terminal; every string
+        // here is written to that width rather than truncated into noise.
+        card(
+            frame,
+            area,
+            "spend",
+            "\u{2013}",
+            &[
+                "no seat price known".to_string(),
+                "set [cost.subscriptions]".to_string(),
+                "see token cost".to_string(),
+            ],
+            theme::DIM,
+        );
+        return;
+    };
+
+    let value = format!(
+        "{}{}{}/mo",
+        if estimate.unpriced_tools > 0 {
+            "\u{2265}"
+        } else {
+            ""
+        },
+        if estimate.estimated() { "\u{2248}" } else { "" },
+        format_usd(estimate.monthly_usd)
+    );
+
+    let mut detail = vec![match (estimate.configured, estimate.detected) {
+        (c, 0) => format!("{c} configured seat(s)"),
+        (0, d) => format!("{d} plan(s) detected"),
+        (c, d) => format!("{c} configured \u{b7} {d} detected"),
+    }];
+    // The comparison the Cost view makes per tool, summed: the same tools'
+    // window tokens at API rates. Signed like `SubscriptionRow::saving`.
+    let saving = estimate.api_equivalent - estimate.monthly_usd;
+    detail.push(if saving >= 0.0 {
+        format!("{} under API rates", format_usd(saving))
+    } else {
+        format!("{} over API rates", format_usd(-saving))
+    });
+    if estimate.unpriced_tools > 0 {
+        detail.push(format!(
+            "\u{25b2} {} tool(s) unpriced",
+            estimate.unpriced_tools
+        ));
+    }
+
+    card(
+        frame,
+        area,
+        "spend",
+        &value,
+        &detail,
+        if estimate.unpriced_tools > 0 {
+            theme::WARN
+        } else {
+            theme::MONEY
+        },
+    );
 }
 
 #[cfg(feature = "sqlite")]
@@ -2147,6 +2220,110 @@ mod tests {
         let out = rendered(&app, 120, 40);
         assert!(out.contains("nothing can be costed"));
         assert!(!out.contains("$0.00"));
+    }
+
+    /// The SPEND card prices seats, not tokens: nothing known shows `–` and
+    /// says how to fix it, a detected plan is `≈` an estimate at list price,
+    /// and a tool without any figure makes the total `≥` a floor.
+    #[test]
+    fn the_spend_card_prices_seats_not_tokens() {
+        // populated(): no [cost.subscriptions] and no detected plan.
+        let mut app = populated();
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 150, 40);
+        assert!(
+            out.contains("TOKEN COST"),
+            "the API arithmetic keeps a card"
+        );
+        assert!(out.contains("no seat price known"));
+        assert!(!out.contains("/mo"), "no figure is invented");
+    }
+
+    #[test]
+    fn a_detected_plan_prices_the_spend_card_as_an_estimate() {
+        let mut ledger = Ledger::default();
+        ledger.add("2026-07-26", "codex", "gpt-5.6", &tokens(1_000, 2_000));
+        ledger.observe_plan("codex", "team");
+
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            CostConfig::default(),
+        );
+        app.set_tab(Tab::Overview);
+
+        let out = rendered(&app, 150, 40);
+        assert!(
+            out.contains("\u{2248}$30.00/mo"),
+            "the team list price, flagged an estimate"
+        );
+        assert!(out.contains("1 plan(s) detected"));
+    }
+
+    #[test]
+    fn a_tool_without_any_figure_makes_the_spend_card_a_floor() {
+        let mut ledger = Ledger::default();
+        ledger.add(
+            "2026-07-26",
+            "claude_code",
+            "claude-opus-5",
+            &tokens(1_000, 2_000),
+        );
+        // Usage from a tool with no configured price and no named plan.
+        ledger.add(
+            "2026-07-26",
+            "opencode",
+            "big-pickle",
+            &tokens(1_000, 2_000),
+        );
+
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut cost = CostConfig::default();
+        cost.subscriptions.insert("claude_code".into(), 150.0);
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            cost,
+        );
+        app.set_tab(Tab::Overview);
+
+        let out = rendered(&app, 150, 40);
+        assert!(
+            out.contains("\u{2265}$150.00/mo"),
+            "a configured seat, floored by the tool beside it"
+        );
+        assert!(
+            !out.contains("\u{2248}$150.00"),
+            "configured is not an estimate"
+        );
+        assert!(out.contains("1 tool(s) unpriced"));
     }
 
     #[test]

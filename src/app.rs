@@ -215,6 +215,32 @@ pub struct SubscriptionRow {
     pub api_equivalent: f64,
 }
 
+/// The seat cost behind the window's usage, summed for the SPEND card.
+///
+/// A partial answer stays honest by carrying its own gaps: `detected` figures
+/// are list-price estimates, and `unpriced_tools` makes the total a floor.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpendEstimate {
+    /// Monthly seat total across the tools with a figure.
+    pub monthly_usd: f64,
+    /// What the same tools' window tokens cost at API rates.
+    pub api_equivalent: f64,
+    /// Figures from `[cost.subscriptions]`.
+    pub configured: usize,
+    /// Figures from a plan the tool's transcripts name, at list price.
+    pub detected: usize,
+    /// Tools with usage but no figure at all — the total is a floor.
+    pub unpriced_tools: usize,
+}
+
+impl SpendEstimate {
+    /// Some figure is a list price for a detected plan, not something the
+    /// operator configured.
+    pub fn estimated(&self) -> bool {
+        self.detected > 0
+    }
+}
+
 impl SubscriptionRow {
     /// Positive when the subscription is cheaper than paying per token.
     pub fn saving(&self) -> f64 {
@@ -716,9 +742,12 @@ impl App {
             .spend_by_tool()
             .into_iter()
             .filter_map(|(tool, api_equivalent)| {
-                // Plan is unknown to `surface` — it reads no account state — so
-                // only a configured subscription produces a row.
-                let (monthly, estimated) = self.cost_config.monthly(&tool, None)?;
+                // A configured subscription wins. Otherwise the plan the
+                // tool's own transcripts name is priced at its list rate and
+                // flagged as an estimate — still no account state read, and a
+                // tool naming no plan stays absent rather than guessed at.
+                let plan = self.ledger().plans.get(&tool).map(String::as_str);
+                let (monthly, estimated) = self.cost_config.monthly(&tool, plan)?;
                 Some(SubscriptionRow {
                     tool,
                     monthly,
@@ -729,6 +758,24 @@ impl App {
             .collect();
         rows.sort_by(|a, b| b.saving().total_cmp(&a.saving()));
         rows
+    }
+
+    /// What the seats behind this window's usage actually cost, as far as
+    /// that can be known. `None` when no tool has a figure: the card shows
+    /// the absence, never a guess.
+    pub fn spend_estimate(&self) -> Option<SpendEstimate> {
+        let rows = self.subscriptions();
+        if rows.is_empty() {
+            return None;
+        }
+        let configured = rows.iter().filter(|r| !r.estimated).count();
+        Some(SpendEstimate {
+            monthly_usd: rows.iter().map(|r| r.monthly).sum(),
+            api_equivalent: rows.iter().map(|r| r.api_equivalent).sum(),
+            configured,
+            detected: rows.len() - configured,
+            unpriced_tools: self.spend_by_tool().len() - rows.len(),
+        })
     }
 
     // ------------------------------------------------------------ navigation

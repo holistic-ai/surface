@@ -52,21 +52,32 @@ card does nothing at all, and a click with the help overlay open only closes it.
 
 ## Overview
 
-Four cards, one chart, three rankings — down the page, not across it. Each card
+Five cards, one chart, three rankings — down the page, not across it. Each card
 is a headline figure with qualifier lines under it, and a card turns amber when
 one of those is a caveat rather than a count.
 
 | Card | Figure | Qualifiers |
 |---|---|---|
-| **SPEND** | Total cost over the window | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` if any |
+| **SPEND** | What the seats actually cost, `$X/mo` | Where the figures came from (`N configured seat(s)`, `N plan(s) detected`), the saving against API rates, and `▲ N tool(s) unpriced` if any |
+| **TOKEN COST** | The window's tokens at API list rates | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` if any |
 | **TOKENS** | Everything billable, cache included | Message count, distinct model count |
 | **TOOLS** | AI tools detected | `▲ N autonomous`, vendor count |
 | **AI SITES** | Distinct AI domains visited | Visit total, and `▲ N browser(s) unreadable` if any |
 
+SPEND and TOKEN COST are different questions about the same tokens. TOKEN COST
+is arithmetic — the window's usage priced per token at list rates. SPEND is
+what is actually paid for the seats behind that usage: a figure from
+`[cost.subscriptions]` is shown plainly; one from a plan the tool's own
+transcripts name (Codex writes `plan_type` beside its token counts) is priced
+at that plan's list rate and marked `≈` an estimate; a tool with usage but no
+figure makes the total `≥` a floor. Knowing nothing, the card shows `–` and
+says how to configure it — it never guesses, and it still reads no account
+state.
+
 ### The rate and the delta
 
-Two derived figures on the SPEND card, and both decline to appear rather than
-mislead:
+Two derived figures on the TOKEN COST card, and both decline to appear rather
+than mislead:
 
 - **`≈ $X/day`** divides the total by the window. Per day rather than projected to
   a month, because the default window *is* a month — a monthly projection came out
@@ -268,8 +279,9 @@ same tokens would have cost at API rates:
 | **SAME AT API RATES** | What that usage would have cost per token |
 | | `subscription saves $240.00`, or `▲ API would be $88.00 cheaper` |
 
-A tool with no `[cost.subscriptions]` entry gets no row: surface reads no account
-state, so it cannot know your plan and will not guess one. See
+A tool with no `[cost.subscriptions]` entry and no plan named in its own
+transcripts gets no row: surface reads no account state, so a plan it is not
+told about — by you or by the transcript — is never guessed. See
 [Configuration](configuration.md#cost) and [Costs](costs.md).
 
 ## Projects
