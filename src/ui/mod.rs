@@ -1699,9 +1699,10 @@ fn series_dot(series: &[String], tool: &str) -> Span<'static> {
 
 /// The tools that ran in a repository, each behind its series dot — the same
 /// texture the usage chart and the session breakdown key that tool by, so a
-/// row and a segment are visibly one thing. A repo with no observed sessions
-/// (a ledger written before tools were recorded) shows a muted `·`, not
-/// nothing: an empty cell would read as "no tool", which is never true.
+/// row and a segment are visibly one thing. A repo whose sessions are all
+/// pinned to another repository (session attribution is first-wins) shows a
+/// muted `·`, not nothing: an empty cell would read as "no tool", which is
+/// never true.
 fn tools_line(series: &[String], tools: &[String]) -> Line<'static> {
     if tools.is_empty() {
         return Line::from(Span::styled("\u{b7}", Style::default().fg(theme::MUTED)));
@@ -2239,8 +2240,7 @@ mod tests {
     /// wide terminal actually shows.
     #[test]
     fn the_tools_column_survives_the_side_by_side_split() {
-        let mut app = two_projects_with_sessions();
-        app.set_tab(Tab::Projects);
+        let app = two_projects_with_sessions();
         let out = rendered(&app, 150, 40);
         assert!(out.contains("TOOLS"), "the tools column header");
     }
