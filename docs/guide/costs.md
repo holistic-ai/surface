@@ -86,19 +86,27 @@ config, it is suffixed `est`.
 |---|---|
 | `input` | Input rate |
 | `output` | Output rate |
-| `cache_read` | Cache-read rate |
-| `cache_creation` | Cache-write rate |
+| `cache_read` | Cache-read rate — or zero when the table omits one, and the figure becomes a floor |
+| `cache_creation` | Cache-write rate — or the input rate when the table omits one, and the figure becomes a floor |
 | `reasoning` | Output rate |
 
 Cache reads at cache rates and reasoning at output rates is how the providers
 that distinguish them do it. This is also why the six token counters are never
 merged before pricing: one blended number cannot be priced correctly.
 
+The two fallbacks lean opposite ways for the same reason: providers that
+publish a cache-write rate set it *above* input, and a cache-read rate *below*
+it, so input-for-writes and zero-for-reads both understate. A figure that
+understates is shown as `≥` — a floor, never passed off as exact, and never a
+silent `$0` inside a number that claims to be known.
+
 ## The four ways to be wrong
 
 A summary, because these are the ones to check before quoting a figure at anyone:
 
-1. **`≥` on a total** — unpriced models underneath it. The real number is higher.
+1. **`≥` on a total** — models underneath it that are not fully priced: absent
+   from the table, or in it with a cache rate missing. The real number is
+   higher.
 2. **`built-in price table`** — the rates are as old as the binary. Run once
    online.
 3. **`(unattributed)` is large** — the spend is real, but not tied to a

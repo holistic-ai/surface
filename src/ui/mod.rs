@@ -1077,11 +1077,15 @@ fn draw_cost(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
         .fold(0.0f64, f64::max)
         .max(0.000_001);
 
-    // The three cost states are visually distinct in both modes: "unpriced" must
-    // never read as "$0.00".
+    // The four cost states are visually distinct in both modes: "unpriced"
+    // must never read as "$0.00", and a floor must never read as exact.
     let amount_cell = |cost: &Cost| {
         let (amount, style) = match cost {
             Cost::Known(usd) => (format_usd(*usd), Style::default().fg(theme::MONEY)),
+            Cost::Floor(usd) => (
+                format!("\u{2265}{}", format_usd(*usd)),
+                Style::default().fg(theme::WARN),
+            ),
             Cost::Local => ("local".to_string(), Style::default().fg(theme::DIM)),
             Cost::Unpriced => (
                 "\u{25b2} unpriced".to_string(),
@@ -1180,8 +1184,10 @@ fn draw_cost(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
         app.scan.usage.window_days
     );
     if unpriced > 0 {
+        // "not fully priced" rather than "have no price": a model whose cache
+        // rate the table omits has a price — a floor — and lands here too.
         title.push_str(&format!(
-            " \u{b7} \u{25b2} a floor: {unpriced} model(s) have no price"
+            " \u{b7} \u{25b2} a floor: {unpriced} model(s) not fully priced"
         ));
     }
     if app.prices.is_builtin() {
