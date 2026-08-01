@@ -2468,6 +2468,7 @@ mod tests {
                     source: crate::scan::plans::PlanSource::Transcript,
                 },
             )]),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2515,6 +2516,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2565,6 +2567,7 @@ mod tests {
                     source: crate::scan::plans::PlanSource::Account,
                 },
             )]),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2605,6 +2608,7 @@ mod tests {
             sites: Default::default(),
             usage: Default::default(),
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2665,6 +2669,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2799,6 +2804,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
