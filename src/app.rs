@@ -458,7 +458,12 @@ impl App {
                 let meta = self.ledger().session_meta.get(&key);
                 SessionRow {
                     tool: meta.map(|m| m.tool.clone()).unwrap_or_default(),
-                    repo: meta.map(|m| m.repo.clone()).unwrap_or_default(),
+                    // Canonical, like the project rows, or an aliased
+                    // project's breakdown would come up empty: the pane
+                    // filters sessions by the name the row above shows.
+                    repo: meta
+                        .map(|m| self.ledger().canonical(&m.repo).to_string())
+                        .unwrap_or_default(),
                     title: meta.and_then(|m| m.title.clone()),
                     models: models.into_keys().collect(),
                     key,

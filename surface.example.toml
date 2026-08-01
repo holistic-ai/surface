@@ -39,6 +39,15 @@ scan = true
 # along with their deduplication keys.
 window_days = 30
 
+# Project rows to fold into another, "shown name" = "fold into". The same
+# project legitimately earns two names — a checkout with an `origin` remote
+# reports owner/name, a copy of the same code with no remote reports its
+# folder basename — and surface never guesses that two names are one project.
+# Declare it here instead. Applied when the ledger is read, so history
+# regroups retroactively and a wrong alias is one edit away from undone.
+# [usage.repo_aliases]
+# "HAI Neo" = "holistic-ai/hai-neo"
+
 # ---------------------------------------------------------------------- cost
 #
 # surface prices tokens at API rates. If you pay a flat subscription instead,

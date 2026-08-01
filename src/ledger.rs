@@ -132,6 +132,13 @@ pub struct Ledger {
     pub days: BTreeMap<String, DayState>,
     /// session key -> what that session is. Survives between scans.
     pub session_meta: BTreeMap<String, SessionMeta>,
+    /// Project rows folded into another at *read* time, from
+    /// `[usage.repo_aliases]`. Never persisted and never applied to the
+    /// stored keys — like prices, aliasing is a read-time operation, so
+    /// editing an alias regroups the whole history retroactively and a wrong
+    /// one is an edit away from undone.
+    #[serde(skip)]
+    pub aliases: BTreeMap<String, String>,
     /// Whether titles were being collected when this ledger was written.
     pub titles_enabled: bool,
     /// Cumulative counters, reported so a consumer can see dedup ran.
@@ -147,6 +154,7 @@ impl Default for Ledger {
             sessions: BTreeMap::new(),
             days: BTreeMap::new(),
             session_meta: BTreeMap::new(),
+            aliases: BTreeMap::new(),
             titles_enabled: false,
             duplicates_skipped: 0,
             undedupable_records: 0,
@@ -343,12 +351,30 @@ impl Ledger {
         totals
     }
 
+    /// Install the read-time aliases. Called once per scan, from config.
+    pub fn set_aliases(&mut self, aliases: BTreeMap<String, String>) {
+        self.aliases = aliases;
+    }
+
+    /// The name a project is shown under: its alias target, or itself.
+    ///
+    /// One hop, deliberately — an alias pointing at another alias does not
+    /// chase, so a cycle in the config cannot loop a scan.
+    pub fn canonical<'a>(&'a self, project: &'a str) -> &'a str {
+        self.aliases
+            .get(project)
+            .map(String::as_str)
+            .unwrap_or(project)
+    }
+
     /// Window totals per repository and model, for pricing in the viewers.
     pub fn by_project(&self) -> BTreeMap<String, BTreeMap<String, Tokens>> {
         let mut totals: BTreeMap<String, BTreeMap<String, Tokens>> = BTreeMap::new();
         for state in self.days.values() {
             for (project, models) in &state.projects {
-                let entry = totals.entry(project.clone()).or_default();
+                let entry = totals
+                    .entry(self.canonical(project).to_string())
+                    .or_default();
                 for (model, tokens) in models {
                     entry.entry(model.clone()).or_default().add(tokens);
                 }
@@ -368,7 +394,12 @@ impl Ledger {
             for (project, models) in &state.projects {
                 for (model, tokens) in models {
                     if !tokens.is_empty() {
-                        rows.push((day.clone(), project.clone(), model.clone(), *tokens));
+                        rows.push((
+                            day.clone(),
+                            self.canonical(project).to_string(),
+                            model.clone(),
+                            *tokens,
+                        ));
                     }
                 }
             }
@@ -752,6 +783,57 @@ mod tests {
         assert_eq!(
             loaded.plan(Path::new("/tmp/a.jsonl"), 10, 20),
             ReadPlan::Skip
+        );
+    }
+
+    #[test]
+    fn an_alias_folds_two_names_into_one_project() {
+        let mut ledger = Ledger::default();
+        let t = tokens(100, 10);
+        ledger.add_project("2026-07-26", "HAI Neo", "claude-opus-5", &t);
+        ledger.add_project("2026-07-27", "holistic-ai/hai-neo", "claude-opus-5", &t);
+        ledger.set_aliases(BTreeMap::from([(
+            "HAI Neo".to_string(),
+            "holistic-ai/hai-neo".to_string(),
+        )]));
+
+        let by_project = ledger.by_project();
+        assert_eq!(by_project.len(), 1, "two names, one project");
+        assert_eq!(
+            by_project["holistic-ai/hai-neo"]["claude-opus-5"].input, 200,
+            "both days' tokens under the one row"
+        );
+        assert!(
+            ledger
+                .project_rows()
+                .iter()
+                .all(|(_, project, _, _)| project == "holistic-ai/hai-neo"),
+            "the daily rows follow the alias too"
+        );
+    }
+
+    /// The stored keys stay raw: aliasing is a read-time operation, so a
+    /// changed alias regroups history and a removed one restores it.
+    #[test]
+    fn aliases_are_never_persisted_and_never_chase() {
+        let dir = temp_dir("aliases");
+        let path = ledger_path(&dir);
+        let mut ledger = Ledger::default();
+        ledger.add_project("2026-07-26", "HAI Neo", "claude-opus-5", &tokens(100, 10));
+        ledger.set_aliases(BTreeMap::from([
+            ("HAI Neo".to_string(), "middle".to_string()),
+            ("middle".to_string(), "elsewhere".to_string()),
+        ]));
+        ledger.save(&path).unwrap();
+
+        // One hop only: a chain (or a cycle) in the config cannot loop.
+        assert_eq!(ledger.canonical("HAI Neo"), "middle");
+
+        let loaded = Ledger::load(&path);
+        assert!(loaded.aliases.is_empty(), "read-time state, not persisted");
+        assert!(
+            loaded.days["2026-07-26"].projects.contains_key("HAI Neo"),
+            "the stored key is the raw one"
         );
     }
 

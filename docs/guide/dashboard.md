@@ -309,7 +309,11 @@ walks projects and the chart follows.
 ```
 
 Attribution is by the working directory a session ran in, resolved to its git
-`origin` slug — never a path, and never a branch. Work outside a repository lands
+`origin` slug — never a path, and never a branch. A directory with no remote is
+named by its basename, which is how one project can appear as two rows (`HAI
+Neo` beside `holistic-ai/hai-neo`); declare those one project with
+[`[usage.repo_aliases]`](configuration.md#usagerepo_aliases) and the rows fold
+together, history included. Work outside a repository lands
 in `(unattributed)`, which is a row like any other rather than a discard — see
 [Repository
 attribution](../getting-started/concepts.md#repository-attribution).

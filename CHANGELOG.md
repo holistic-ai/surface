@@ -15,6 +15,18 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Added
+
+- **`[usage.repo_aliases]` folds two names for one project into one row.** A
+  checkout with an `origin` remote reports `owner/name`; a copy of the same
+  code with no remote reports its folder basename; and surface never guesses
+  the two are the same project, because folding spend together on a string
+  resemblance is misattribution. The operator declares it instead —
+  `"HAI Neo" = "holistic-ai/hai-neo"` — and the grouping applies when the
+  ledger is read, never to what is stored, so history regroups retroactively
+  and a wrong alias is one edit away from undone. Project totals, daily rows
+  and the session breakdown all follow the alias.
+
 ## [0.1.0] - 2026-07-28
 
 First release.
