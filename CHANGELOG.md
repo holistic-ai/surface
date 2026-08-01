@@ -15,6 +15,15 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Added
+
+- **The Projects view names the tools behind each repository.** Each project
+  row ends in a `TOOLS` column listing the tools whose sessions ran there,
+  behind the same series texture the usage chart keys that tool by — so two
+  rows like `HAI Neo` and `owner/hai-neo` finally read as "the Codex checkout"
+  and "the Claude Code one". It replaces the share bar, which repeated TOKENS
+  as decoration.
+
 ### Changed
 
 - **The SPEND card says what its dollars are.** Its last qualifier now reads

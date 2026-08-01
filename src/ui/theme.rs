@@ -175,7 +175,7 @@ pub fn model_swatch(slot: usize) -> (&'static str, Color) {
     ("\u{2588}", model(slot))
 }
 
-/// Magnitude bars in the tables — the `TOTAL` and share columns.
+/// Magnitude bars in the tables — the `TOTAL` and `VISITS` columns.
 ///
 /// Ash, so a solid run of `█` reads as a bar rather than as a line of text. It is
 /// deliberately not a series texture: these bars rank rows within one column and
