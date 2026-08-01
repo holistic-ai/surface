@@ -2304,8 +2304,8 @@ mod tests {
 
         let out = rendered(&app, 150, 40);
         assert!(
-            out.contains("\u{2248}$30.00/mo"),
-            "the team list price, flagged an estimate"
+            out.contains("\u{2248}$25.00/mo"),
+            "ChatGPT Business's monthly list price, flagged an estimate"
         );
         assert!(out.contains("1 plan(s) detected"));
     }

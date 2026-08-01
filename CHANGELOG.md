@@ -28,7 +28,11 @@ publishing empty notes.
   `[cost.subscriptions]` beats both; the `≈` on an estimated figure marks
   exactly what one config line makes exact. Only the plan's name is read from
   those files, never the credentials beside it, and nothing is fetched.
-  `--json` carries it as `tools.list[].plan` with its source.
+  `--json` carries it as `tools.list[].plan` with its source. The built-in
+  table prices ChatGPT's `team` plan at $25 after OpenAI's April 2026
+  repricing of Business, splitting it from Claude's `team_tier_1` at $30 —
+  the table carries monthly-billing list rates, and annual billing being
+  lower is one more reason every figure from it is marked an estimate.
 
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now

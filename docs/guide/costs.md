@@ -88,9 +88,12 @@ two sources, most current first:
 - **Its transcripts.** Codex also writes `rate_limits.plan_type` beside its
   token counts — the plan that was active when the usage was written.
 
-A plan named either way is priced at its published list rate — suffixed `est`
-in the table and marked `≈` on the SPEND card, because a list price is an
-estimate of your bill, not your bill. Nothing is fetched: these are files
+A plan named either way is priced at its published **monthly** list rate —
+suffixed `est` in the table and marked `≈` on the SPEND card, because a list
+price is an estimate of your bill, not your bill. Annual billing is lower
+(ChatGPT Business bills $20 per seat annually against the $25 monthly rate),
+and negotiated or legacy rates differ too — which is exactly what the config
+entry is for. Nothing is fetched: these are files
 already on this disk, the plan's *name* is the only thing read out of them —
 never the credentials beside it — and a tool that names no plan gets no row
 rather than a guess. A configured entry always beats a detected plan.
