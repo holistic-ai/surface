@@ -146,6 +146,10 @@ pub struct ToolRow {
     /// The subscription plan the tool is on, when its account file or
     /// transcripts name one. The raw slug, as the tool wrote it.
     pub plan: Option<String>,
+    /// What that seat costs per month — `[cost.subscriptions]` if set, the
+    /// plan's list price otherwise — and whether it is an estimate. Shown
+    /// beside the plan so a wrong estimate is visible where it can be fixed.
+    pub monthly: Option<(f64, bool)>,
     pub evidence: Vec<String>,
 }
 
@@ -343,17 +347,18 @@ impl App {
             .scan
             .tools
             .iter()
-            .map(|d| ToolRow {
-                name: d.tool.name,
-                vendor: d.tool.vendor,
-                kind: d.tool.kind.label(),
-                autonomous: d.tool.autonomous,
-                plan: self
-                    .scan
-                    .plans
-                    .get(crate::scan::plans::usage_tool_id(d.tool.id))
-                    .map(|p| p.plan.clone()),
-                evidence: d.evidence.clone(),
+            .map(|d| {
+                let usage_id = crate::scan::plans::usage_tool_id(d.tool.id);
+                let plan = self.scan.plans.get(usage_id).map(|p| p.plan.clone());
+                ToolRow {
+                    name: d.tool.name,
+                    vendor: d.tool.vendor,
+                    kind: d.tool.kind.label(),
+                    autonomous: d.tool.autonomous,
+                    monthly: self.cost_config.monthly(usage_id, plan.as_deref()),
+                    plan,
+                    evidence: d.evidence.clone(),
+                }
             })
             .collect();
 

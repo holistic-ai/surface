@@ -139,7 +139,8 @@ One row per detected tool.
 | **VENDOR** | Who ships it |
 | **KIND** | `assistant`, `coding agent`, `autonomous agent`, `editor`, `extension`, `local runtime` |
 | **CAN ACT** | Whether it can execute code or take actions on this machine |
-| **PLAN** | The subscription plan the tool is signed into, as the raw slug it wrote (`team_tier_1`, `team`) — from its account file, or its transcripts as the fallback. `–` when it names none |
+| **PLAN** | The subscription plan the tool is signed into, as the raw slug it wrote (`default_claude_max_5x`, `team`) — from its account file, or its transcripts as the fallback. `–` when it names none |
+| **$/MO** | What that seat costs per month: plain from `[cost.subscriptions]`, `≈` at the plan's list price. The `≈` is the invitation — a figure that looks wrong is fixed with one config line |
 | **FOUND BY** | The evidence that produced the detection |
 
 **CAN ACT** is the column worth reading first. A chat window that can only talk

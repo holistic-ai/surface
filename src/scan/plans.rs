@@ -99,9 +99,14 @@ pub fn usage_tool_id(detection_id: &str) -> &str {
 
 /// The seat named by Claude Code's `~/.claude.json`.
 ///
-/// `seatTier` is the seat being paid for (`team_tier_1`); personal plans name
-/// no seat, so `userRateLimitTier` (`default_claude_max_5x`) is the fallback.
-/// Only `oauthAccount` is looked at — the rest of the file is never walked.
+/// Two fields describe it, and the *capacity* one prices better. A Team
+/// premium seat reads `seatTier: team_tier_1` — the same slug as a standard
+/// seat — while its `userRateLimitTier: default_claude_max_5x` names the
+/// Max-class capacity actually being paid for; pricing by the seat slug
+/// under-reported a real premium seat by 70%. So: the rate-limit tier when
+/// it carries a known list price, the seat tier otherwise (a standard seat's
+/// rate tier is unpriceable, a personal plan names no seat at all). Only
+/// `oauthAccount` is looked at — the rest of the file is never walked.
 fn claude_seat(path: &Path) -> Option<String> {
     let raw = std::fs::read(path).ok()?;
     let value: serde_json::Value = serde_json::from_slice(&raw).ok()?;
@@ -113,7 +118,11 @@ fn claude_seat(path: &Path) -> Option<String> {
             .filter(|s| !s.is_empty())
             .map(str::to_string)
     };
-    field("seatTier").or_else(|| field("userRateLimitTier"))
+    let rate = field("userRateLimitTier");
+    match rate {
+        Some(rate) if crate::config::list_price(&rate).is_some() => Some(rate),
+        rate => field("seatTier").or(rate),
+    }
 }
 
 /// The plan named by Codex's `~/.codex/auth.json`.
@@ -208,7 +217,9 @@ mod tests {
     }
 
     #[test]
-    fn the_claude_seat_is_read_and_the_rate_tier_is_the_fallback() {
+    fn a_premium_seat_is_priced_by_its_capacity_not_its_seat_slug() {
+        // seatTier reads `team_tier_1` for standard and premium seats alike;
+        // the rate tier is what tells them apart, so it wins when priceable.
         let path = temp_file(
             "claude.json",
             &json!({"oauthAccount": {
@@ -218,17 +229,28 @@ mod tests {
             }})
             .to_string(),
         );
+        assert_eq!(claude_seat(&path).as_deref(), Some("default_claude_max_5x"));
+    }
+
+    #[test]
+    fn a_standard_seat_keeps_its_seat_slug_and_gaps_stay_honest() {
+        // A standard seat's rate tier names no priced capacity.
+        let path = temp_file(
+            "claude-standard.json",
+            &json!({"oauthAccount": {
+                "seatTier": "team_tier_1",
+                "userRateLimitTier": "default_claude"
+            }})
+            .to_string(),
+        );
         assert_eq!(claude_seat(&path).as_deref(), Some("team_tier_1"));
 
+        // A personal plan names no seat at all.
         let path = temp_file(
             "claude-personal.json",
             &json!({"oauthAccount": {"userRateLimitTier": "default_claude_max_5x"}}).to_string(),
         );
-        assert_eq!(
-            claude_seat(&path).as_deref(),
-            Some("default_claude_max_5x"),
-            "a personal plan names no seat"
-        );
+        assert_eq!(claude_seat(&path).as_deref(), Some("default_claude_max_5x"));
 
         let path = temp_file("claude-empty.json", &json!({"projects": {}}).to_string());
         assert_eq!(claude_seat(&path), None, "signed out is None, not a guess");

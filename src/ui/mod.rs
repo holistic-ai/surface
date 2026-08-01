@@ -829,12 +829,27 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
                 Some(plan) => Span::styled(plan.clone(), Style::default().fg(theme::MUTED)),
                 None => Span::styled("\u{2013}", Style::default().fg(theme::DIM)),
             };
+            // The price beside the plan, in the same grammar as everywhere
+            // else: plain when configured, `≈` when it is a list-price
+            // estimate — which is exactly where a wrong estimate gets seen
+            // and corrected with a `[cost.subscriptions]` entry.
+            let seat = match t.monthly {
+                Some((usd, false)) => {
+                    Span::styled(format_usd(usd), Style::default().fg(theme::MONEY))
+                }
+                Some((usd, true)) => Span::styled(
+                    format!("\u{2248}{}", format_usd(usd)),
+                    Style::default().fg(theme::MUTED),
+                ),
+                None => Span::styled("\u{2013}", Style::default().fg(theme::DIM)),
+            };
             Row::new(vec![
                 Cell::from(t.name),
                 Cell::from(t.vendor),
                 Cell::from(t.kind),
                 Cell::from(Line::from(flag)),
                 Cell::from(Line::from(plan)),
+                Cell::from(Line::from(seat)),
                 Cell::from(truncate(&t.evidence.join(", "), 60)),
             ])
         })
@@ -848,11 +863,12 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
             Constraint::Length(18),
             Constraint::Length(14),
             Constraint::Length(22),
+            Constraint::Length(10),
             Constraint::Min(20),
         ],
     )
     .header(header(&[
-        "TOOL", "VENDOR", "KIND", "CAN ACT", "PLAN", "FOUND BY",
+        "TOOL", "VENDOR", "KIND", "CAN ACT", "PLAN", "$/MO", "FOUND BY",
     ]))
     .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED))
     .block(panel(&format!(
@@ -2386,6 +2402,51 @@ mod tests {
         let out = rendered(&app, 150, 30);
         assert!(out.contains("PLAN"), "the plan column header");
         assert!(out.contains("team_tier_1"), "the slug the tool wrote");
+        assert!(out.contains("$/MO"), "the seat price column header");
+        assert!(
+            out.contains("\u{2248}$30.00"),
+            "the plan's list price, marked an estimate"
+        );
+    }
+
+    /// A configured seat price shows plain — the estimate marker is what
+    /// tells the reader which figures are worth correcting in config.
+    #[test]
+    fn a_configured_seat_price_shows_plain_on_the_tools_view() {
+        let detected: Vec<tooling::Detected> = tooling::AI_TOOLS
+            .iter()
+            .take(1)
+            .map(|tool| tooling::Detected {
+                tool,
+                evidence: vec!["config:~/.x".to_string()],
+            })
+            .collect();
+        let scan = Scan {
+            tools_summary: tooling::summarise(&detected),
+            tools: detected,
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: Default::default(),
+            plans: Default::default(),
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut cost = CostConfig::default();
+        cost.subscriptions.insert("claude_code".into(), 100.0);
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            cost,
+        );
+        app.set_tab(Tab::Tools);
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("$100.00"), "the configured figure");
+        assert!(
+            !out.contains("\u{2248}$100.00"),
+            "configured is not an estimate"
+        );
     }
 
     #[test]
