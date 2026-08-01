@@ -67,12 +67,13 @@ one of those is a caveat rather than a count.
 SPEND and TOKEN COST are different questions about the same tokens. TOKEN COST
 is arithmetic — the window's usage priced per token at list rates. SPEND is
 what is actually paid for the seats behind that usage: a figure from
-`[cost.subscriptions]` is shown plainly; one from a plan the tool's own
-transcripts name (Codex writes `plan_type` beside its token counts) is priced
-at that plan's list rate and marked `≈` an estimate; a tool with usage but no
-figure makes the total `≥` a floor. Knowing nothing, the card shows `–` and
-says how to configure it — it never guesses, and it still reads no account
-state.
+`[cost.subscriptions]` is shown plainly; one from a plan the tool itself names
+— its account file first (`~/.claude.json`, `~/.codex/auth.json`), its
+transcripts as the fallback — is priced at that plan's list rate and marked
+`≈` an estimate; a tool with usage but no figure makes the total `≥` a floor.
+Knowing nothing, the card shows `–` and says how to configure it. Nothing is
+fetched, nothing is guessed, and the plan's *name* is the only thing read from
+those files — never the credentials that sit beside it.
 
 ### The rate and the delta
 
@@ -138,6 +139,7 @@ One row per detected tool.
 | **VENDOR** | Who ships it |
 | **KIND** | `assistant`, `coding agent`, `autonomous agent`, `editor`, `extension`, `local runtime` |
 | **CAN ACT** | Whether it can execute code or take actions on this machine |
+| **PLAN** | The subscription plan the tool is signed into, as the raw slug it wrote (`team_tier_1`, `team`) — from its account file, or its transcripts as the fallback. `–` when it names none |
 | **FOUND BY** | The evidence that produced the detection |
 
 **CAN ACT** is the column worth reading first. A chat window that can only talk

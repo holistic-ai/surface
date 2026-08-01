@@ -25,12 +25,14 @@
 //! is derived from today — so two runs on the same day produce the same
 //! dashboard. That matters for screenshots and for reproducing a layout bug.
 
+use std::collections::BTreeMap;
+
 use chrono::{Datelike, Duration, Utc, Weekday};
 
 use crate::ledger::{Ledger, Tokens};
 #[cfg(feature = "sqlite")]
 use crate::scan::sites;
-use crate::scan::{tooling, usage, Scan, Timings};
+use crate::scan::{plans, tooling, usage, Scan, Timings};
 
 /// Days of history the demo covers. Matches the default usage window.
 const WINDOW_DAYS: u64 = 30;
@@ -51,6 +53,24 @@ pub fn scan() -> (Scan, Timings) {
             #[cfg(feature = "sqlite")]
             sites: sites(),
             usage: usage(),
+            // The same plans the seeded transcripts and account files would
+            // name on a real machine of this shape.
+            plans: BTreeMap::from([
+                (
+                    "claude_code".to_string(),
+                    plans::DetectedPlan {
+                        plan: "max_20x".to_string(),
+                        source: plans::PlanSource::Account,
+                    },
+                ),
+                (
+                    "codex".to_string(),
+                    plans::DetectedPlan {
+                        plan: "team".to_string(),
+                        source: plans::PlanSource::Transcript,
+                    },
+                ),
+            ]),
             failed: Vec::new(),
             demo: true,
         },

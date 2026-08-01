@@ -143,6 +143,9 @@ pub struct ToolRow {
     pub vendor: &'static str,
     pub kind: &'static str,
     pub autonomous: bool,
+    /// The subscription plan the tool is on, when its account file or
+    /// transcripts name one. The raw slug, as the tool wrote it.
+    pub plan: Option<String>,
     pub evidence: Vec<String>,
 }
 
@@ -345,6 +348,11 @@ impl App {
                 vendor: d.tool.vendor,
                 kind: d.tool.kind.label(),
                 autonomous: d.tool.autonomous,
+                plan: self
+                    .scan
+                    .plans
+                    .get(crate::scan::plans::usage_tool_id(d.tool.id))
+                    .map(|p| p.plan.clone()),
                 evidence: d.evidence.clone(),
             })
             .collect();
@@ -742,11 +750,12 @@ impl App {
             .spend_by_tool()
             .into_iter()
             .filter_map(|(tool, api_equivalent)| {
-                // A configured subscription wins. Otherwise the plan the
-                // tool's own transcripts name is priced at its list rate and
-                // flagged as an estimate — still no account state read, and a
-                // tool naming no plan stays absent rather than guessed at.
-                let plan = self.ledger().plans.get(&tool).map(String::as_str);
+                // A configured subscription wins. Otherwise the plan the tool
+                // itself names — its account file first, its transcripts as
+                // the fallback, merged in `scan::run` — is priced at its list
+                // rate and flagged as an estimate. A tool naming no plan
+                // stays absent rather than guessed at.
+                let plan = self.scan.plans.get(&tool).map(|p| p.plan.as_str());
                 let (monthly, estimated) = self.cost_config.monthly(&tool, plan)?;
                 Some(SubscriptionRow {
                     tool,
