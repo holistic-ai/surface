@@ -58,7 +58,7 @@ one of those is a caveat rather than a count.
 
 | Card | Figure | Qualifiers |
 |---|---|---|
-| **SPEND** | Total cost over the window | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` if any |
+| **SPEND** | Total cost over the window | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
 | **TOKENS** | Everything billable, cache included | Message count, distinct model count |
 | **TOOLS** | AI tools detected | `▲ N autonomous`, vendor count |
 | **AI SITES** | Distinct AI domains visited | Visit total, and `▲ N browser(s) unreadable` if any |
