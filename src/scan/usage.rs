@@ -458,14 +458,19 @@ fn ingest_file(
     let mut reader = BufReader::new(file);
     reader.seek(SeekFrom::Start(start))?;
 
-    // Codex names its model once, in the session header, and never repeats it
-    // on the usage records themselves. Incremental reads start past that
-    // header, so the header is re-read separately — bounded, and only for the
-    // handful of session files that exist.
+    // Codex never names its model on the usage records themselves: it lives
+    // in the session header, or per turn in `turn_context` records.
+    // Incremental reads start past the header, so it is re-read separately —
+    // bounded, and only for the handful of session files that exist.
     let header = session_header(path);
 
     let mut consumed = start;
     let mut line = Vec::new();
+    // The model in effect for records that do not name one. Starts from the
+    // header and follows `turn_context` records as they stream past: newer
+    // Codex names the model per turn rather than in `session_meta`, and it
+    // changes mid-session when the user switches models.
+    let mut current_model = header.model.clone();
 
     loop {
         line.clear();
@@ -481,9 +486,14 @@ fn ingest_file(
         }
         consumed += n as u64;
 
+        if let Some(model) = turn_context_model(&line) {
+            current_model = Some(model);
+            continue;
+        }
+
         if let Some(mut record) = parse_line(tool, &line) {
             if record.model == UNKNOWN_MODEL {
-                if let Some(model) = &header.model {
+                if let Some(model) = &current_model {
                     record.model = model.clone();
                 }
             }
@@ -559,9 +569,12 @@ impl Default for Projects {
 /// What a session's opening records declare, read once.
 ///
 /// Three facts live in the head of a transcript rather than on its usage
-/// records: Codex names its model and working directory only in `session_meta`,
+/// records: Codex names its working directory only in `session_meta`, its
+/// model there (older versions) or on the first `turn_context` (newer ones),
 /// and Claude Code writes an `ai-title` a few records in. Incremental reads
-/// start past all of them, so the head is read separately each scan.
+/// start past all of them, so the head is read separately each scan — and
+/// model changes after the head are followed live, from the `turn_context`
+/// records the ingest loop streams past.
 ///
 /// This used to be two functions opening the same file twice. Folding the
 /// title in makes it three facts for one read rather than three reads.
@@ -576,20 +589,27 @@ pub struct Header {
 fn session_header(path: &Path) -> Header {
     use std::io::Read;
 
-    const HEAD_BYTES: usize = 64 * 1024;
+    // Enough head to span Codex's `session_meta` — which drags several
+    // kilobytes of `base_instructions` with it — plus the first
+    // `turn_context`, which names the model and sits past 60 KiB in real
+    // transcripts. Read as whole lines under the cap, not as a fixed buffer:
+    // a record cut in half parses as nothing.
+    const HEAD_BYTES: u64 = 256 * 1024;
 
-    let mut head = vec![0u8; HEAD_BYTES];
-    let Ok(mut file) = std::fs::File::open(path) else {
+    let Ok(file) = std::fs::File::open(path) else {
         return Header::default();
     };
-    let Ok(read) = file.read(&mut head) else {
-        return Header::default();
-    };
-    head.truncate(read);
+    let mut reader = BufReader::new(file.take(HEAD_BYTES));
+    let mut line = Vec::new();
 
     let mut found = Header::default();
-    for line in head.split(|b| *b == b'\n') {
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(line) else {
+    loop {
+        line.clear();
+        match reader.read_until(b'\n', &mut line) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {}
+        }
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&line) else {
             continue;
         };
 
@@ -755,6 +775,30 @@ pub fn parse_line(tool: &str, line: &[u8]) -> Option<Record> {
 
 fn contains_codex_usage(line: &[u8]) -> bool {
     line.windows(18).any(|w| w == b"total_token_usage\"")
+}
+
+/// The model a Codex `turn_context` record names, if this line is one.
+///
+/// Newer Codex versions no longer write the model into `session_meta`; each
+/// turn opens with a `turn_context` that names it instead, and it changes
+/// mid-session when the user switches models. The usage records themselves
+/// never name a model, so ingest tracks the most recent `turn_context`.
+pub fn turn_context_model(line: &[u8]) -> Option<String> {
+    // The same cheap prefilter as [`parse_line`]: almost no lines are turn
+    // contexts, and skipping the JSON parse for the rest keeps a pass fast.
+    if !line.windows(14).any(|w| w == b"\"turn_context\"") {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_slice(line).ok()?;
+    if value.get("type").and_then(|t| t.as_str()) != Some("turn_context") {
+        return None;
+    }
+    value
+        .get("payload")
+        .and_then(|p| p.get("model"))
+        .and_then(|m| m.as_str())
+        .filter(|m| !m.is_empty() && !NON_MODELS.contains(m))
+        .map(str::to_string)
 }
 
 /// Claude Code: `message.usage` holds per-message deltas.
@@ -937,6 +981,58 @@ mod tests {
                         "total_tokens": total
                     }
                 }
+            }
+        })
+        .to_string()
+            + "\n"
+    }
+
+    /// A `turn_context` record as newer Codex writes it: the only place the
+    /// model is named, since `session_meta` stopped carrying one.
+    fn codex_turn_context(model: &str) -> String {
+        json!({
+            "timestamp": "2026-07-26T12:00:00.000Z",
+            "type": "turn_context",
+            "payload": {
+                "turn_id": "t1",
+                "cwd": "/tmp/work",
+                "model": model,
+                "effort": "medium"
+            }
+        })
+        .to_string()
+            + "\n"
+    }
+
+    /// A newer-Codex usage record: a running total that names no model.
+    fn codex_unnamed_line(total: u64) -> String {
+        json!({
+            "timestamp": "2026-07-26T12:00:00.000Z",
+            "type": "event_msg",
+            "payload": { "type": "token_count", "info": {
+                "total_token_usage": {
+                    "input_tokens": total / 2,
+                    "cached_input_tokens": total / 4,
+                    "cache_write_input_tokens": 0,
+                    "output_tokens": total / 4,
+                    "reasoning_output_tokens": 0,
+                    "total_tokens": total
+                }
+            }}
+        })
+        .to_string()
+            + "\n"
+    }
+
+    fn codex_session_meta(session: &str) -> String {
+        json!({
+            "timestamp": "2026-07-26T12:00:00.000Z",
+            "type": "session_meta",
+            "payload": {
+                "session_id": session,
+                "cwd": "/tmp/work",
+                "model_provider": "openai",
+                "base_instructions": {"text": "You are Codex."}
             }
         })
         .to_string()
@@ -1261,6 +1357,99 @@ mod tests {
         )
         .unwrap();
         assert_eq!(ledger.totals_by_tool()["codex"].total(), 900);
+    }
+
+    #[test]
+    fn a_turn_context_names_the_model_for_the_records_after_it() {
+        // Newer Codex: `session_meta` carries no model, the first
+        // `turn_context` does, and usage records never do. Without the turn
+        // context every token would land under "unknown" — unpriceable.
+        let dir = temp_dir("turnctx");
+        let path = dir.join("c.jsonl");
+        let body =
+            codex_session_meta("s1") + &codex_turn_context("gpt-5.6") + &codex_unnamed_line(400);
+        std::fs::write(&path, body).unwrap();
+
+        let mut ledger = Ledger::default();
+        ingest_file(
+            &mut ledger,
+            "codex",
+            Accumulation::CumulativePerSession,
+            &path,
+            &mut Projects::new(),
+        )
+        .unwrap();
+
+        let rows = ledger.rows();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].2, "gpt-5.6");
+        assert_eq!(rows[0].3.total(), 400);
+    }
+
+    #[test]
+    fn a_mid_session_model_switch_attributes_each_turn_to_its_own_model() {
+        let dir = temp_dir("turnctx-switch");
+        let path = dir.join("c.jsonl");
+        let body = codex_session_meta("s1")
+            + &codex_turn_context("gpt-5.6")
+            + &codex_unnamed_line(100)
+            + &codex_turn_context("gpt-5.6-mini")
+            + &codex_unnamed_line(300);
+        std::fs::write(&path, body).unwrap();
+
+        let mut ledger = Ledger::default();
+        ingest_file(
+            &mut ledger,
+            "codex",
+            Accumulation::CumulativePerSession,
+            &path,
+            &mut Projects::new(),
+        )
+        .unwrap();
+
+        let by_model: std::collections::HashMap<String, u64> = ledger
+            .rows()
+            .into_iter()
+            .map(|(_, _, model, tokens)| (model, tokens.total()))
+            .collect();
+        assert_eq!(by_model["gpt-5.6"], 100);
+        assert_eq!(by_model["gpt-5.6-mini"], 300 - 100, "only the increase");
+    }
+
+    #[test]
+    fn a_line_that_merely_mentions_turn_context_names_no_model() {
+        // `turn_context` somewhere in the payload is not a turn context: only
+        // the top-level record type may switch the model.
+        let line = json!({
+            "type": "event_msg",
+            "payload": {"type": "turn_context", "model": "not-this-one"}
+        })
+        .to_string();
+        assert_eq!(turn_context_model(line.as_bytes()), None);
+    }
+
+    #[test]
+    fn a_header_model_past_the_old_64k_window_is_still_found() {
+        // Real transcripts put the first `turn_context` past 60 KiB, because
+        // `session_meta` drags the whole system prompt with it. A fixed-size
+        // head that cuts that line in half parses it as nothing.
+        let dir = temp_dir("deep-header");
+        let path = dir.join("c.jsonl");
+        let meta = json!({
+            "type": "session_meta",
+            "payload": {
+                "session_id": "s1",
+                "cwd": "/tmp/work",
+                "base_instructions": {"text": "x".repeat(70 * 1024)}
+            }
+        })
+        .to_string()
+            + "\n";
+        std::fs::write(&path, meta + &codex_turn_context("gpt-5.6")).unwrap();
+
+        let header = session_header(&path);
+        assert_eq!(header.model.as_deref(), Some("gpt-5.6"));
+        assert_eq!(header.session.as_deref(), Some("s1"));
     }
 
     // ---------------------------------------------------------- incremental
