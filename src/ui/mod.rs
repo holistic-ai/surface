@@ -2263,14 +2263,14 @@ mod tests {
         .expect("a two-model table parses");
         let mut app = populated_with(all_priced);
         app.set_tab(Tab::Overview);
-        let out = rendered(&app, 120, 40);
+        let out = rendered(&app, 150, 40);
         assert!(out.contains("at API list rates"), "the qualifier line");
         assert!(!out.contains("unpriced"), "nothing is unpriced");
 
         // One of the fixture's two models is missing from this table.
         let mut app = populated_with(prices_for_a_model());
         app.set_tab(Tab::Overview);
-        let out = rendered(&app, 120, 40);
+        let out = rendered(&app, 150, 40);
         assert!(out.contains("unpriced"), "the caveat takes the line");
         assert!(!out.contains("at API list rates"), "one line, never both");
     }
