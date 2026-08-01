@@ -2488,6 +2488,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            plans: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
