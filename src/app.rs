@@ -167,6 +167,11 @@ pub struct RepoRow {
     /// Last day this repository saw any usage, `YYYY-MM-DD`. Empty only if the
     /// row somehow has no days under it, which the builder cannot produce.
     pub last_day: String,
+    /// The tools whose sessions ran in this repository, in stable order.
+    /// Derived from session metadata: the projects map itself has no tool
+    /// axis, and two slugs like `HAI Neo` and `owner/hai-neo` are otherwise
+    /// indistinguishable as "the Codex one" and "the Claude Code one".
+    pub tools: Vec<String>,
 }
 
 /// One session's usage over the window, for the breakdown under a project.
@@ -408,6 +413,21 @@ impl App {
             })
             .collect();
 
+        // Which tools ran in each repository, from the session metadata the
+        // ledger already keeps. Slots follow `self.series`, so a repo's tools
+        // list in the same order (and texture) as the usage chart's legend.
+        let mut tools_by_repo: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for tool in &self.series {
+            for meta in self.ledger().session_meta.values() {
+                if meta.tool == *tool {
+                    let entry = tools_by_repo.entry(meta.repo.clone()).or_default();
+                    if !entry.contains(tool) {
+                        entry.push(tool.clone());
+                    }
+                }
+            }
+        }
+
         let mut repos: Vec<RepoRow> = self
             .ledger()
             .by_project()
@@ -426,6 +446,7 @@ impl App {
                 }
                 RepoRow {
                     last_day: last_day.get(&repo).cloned().unwrap_or_default(),
+                    tools: tools_by_repo.remove(&repo).unwrap_or_default(),
                     repo,
                     tokens: tokens.total(),
                     messages: tokens.messages,
