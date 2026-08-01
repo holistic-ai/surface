@@ -124,16 +124,23 @@ impl CostConfig {
         if let Some(configured) = self.subscriptions.get(tool) {
             return Some((*configured, false));
         }
-        let plan = plan?.to_lowercase();
-        let listed = match plan.as_str() {
-            "pro" | "plus" => 20.0,
-            "max_5x" | "default_claude_max_5x" => 100.0,
-            "max_20x" => 200.0,
-            "team" | "team_tier_1" => 30.0,
-            // Enterprise and API-key access have no list price to assume.
-            _ => return None,
-        };
-        Some((listed, true))
+        Some((list_price(plan?)?, true))
+    }
+}
+
+/// The published list price for a plan slug, if it has one.
+///
+/// Also how plan *detection* decides which of two slugs is worth keeping —
+/// see [`crate::scan::plans`] — so an unknown plan returns `None` rather than
+/// a guess in both places. Enterprise and API-key access have no list price
+/// to assume.
+pub(crate) fn list_price(plan: &str) -> Option<f64> {
+    match plan.to_lowercase().as_str() {
+        "pro" | "plus" => Some(20.0),
+        "max_5x" | "default_claude_max_5x" => Some(100.0),
+        "max_20x" | "default_claude_max_20x" => Some(200.0),
+        "team" | "team_tier_1" => Some(30.0),
+        _ => None,
     }
 }
 

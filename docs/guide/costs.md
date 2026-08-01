@@ -79,9 +79,12 @@ Without an entry, the plan the tool itself names is tried before giving up —
 two sources, most current first:
 
 - **The tool's account file.** Claude Code caches the seat it is signed into
-  in `~/.claude.json` (`seatTier`, falling back to `userRateLimitTier` for
-  personal plans), and Codex's `~/.codex/auth.json` token payload names
-  `chatgpt_plan_type`. These say what the tool is on *right now*.
+  in `~/.claude.json` — priced by its `userRateLimitTier` when that names a
+  known capacity (`default_claude_max_5x`), because a Team premium seat reads
+  the same `seatTier` as a standard one and pricing by the seat slug
+  under-reported it by 70%; the seat tier is the fallback. Codex's
+  `~/.codex/auth.json` token payload names `chatgpt_plan_type`. These say what
+  the tool is on *right now*.
 - **Its transcripts.** Codex also writes `rate_limits.plan_type` beside its
   token counts — the plan that was active when the usage was written.
 
