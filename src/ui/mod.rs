@@ -781,6 +781,110 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
     row_hits(area, &table_state, 1)
 }
 
+/// The plan's own meter: 5-hour windows per day and the peak each reached.
+///
+/// This is the number the plan is actually enforced in — the token table says
+/// how much work was done, this says how close that work came to the cap. A
+/// window at 100% that keeps going is when extra usage starts billing, so the
+/// peaks here are the early warning the token counts cannot give.
+///
+/// Claude only, from Claude Desktop's own samples; a machine without them
+/// gets the absence stated, never a zero that would read as idleness. The
+/// count is a floor — samples exist only while the app runs.
+fn draw_metering(frame: &mut Frame, area: Rect, app: &App) {
+    let metering = &app.scan.metering;
+    if !metering.found {
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from(Span::styled(
+                    "No metering history on this machine.",
+                    Style::default().fg(theme::TEXT),
+                )),
+                Line::from(Span::styled(
+                    "Claude Desktop samples its plan meter into plan-usage-history.json;",
+                    Style::default().fg(theme::DIM),
+                )),
+                Line::from(Span::styled(
+                    "without it there is nothing to reconstruct. [m] returns to tokens.",
+                    Style::default().fg(theme::DIM),
+                )),
+            ])
+            .block(panel("metering windows \u{b7} [m] tokens")),
+            area,
+        );
+        return;
+    }
+
+    let days = app.metering_days();
+    let hottest = metering.hottest();
+
+    let rows: Vec<Row> = days
+        .iter()
+        .map(|d| {
+            // The bar is the day's deepest window against the cap itself —
+            // not against the hottest day — so half a bar always means half
+            // way to the meter, on every machine.
+            let bar = ((d.max_peak as f64 / 100.0) * 24.0).round() as usize;
+            let hot = d.max_peak >= 90;
+            let mark = if hot {
+                Span::styled("\u{25b2} ", Style::default().fg(theme::WARN))
+            } else {
+                Span::raw("")
+            };
+            Row::new(vec![
+                Cell::from(d.day.clone()),
+                Cell::from(thousands(d.windows as u64)),
+                Cell::from(format!("{}%", d.avg_peak)),
+                Cell::from(Line::from(vec![
+                    mark,
+                    Span::styled(
+                        format!("{}%", d.max_peak),
+                        Style::default().fg(if hot { theme::WARN } else { theme::TEXT }),
+                    ),
+                ])),
+                Cell::from(Line::from(Span::styled(
+                    "\u{2588}".repeat(bar),
+                    Style::default().fg(if hot { theme::WARN } else { theme::SEQUENTIAL }),
+                ))),
+            ])
+        })
+        .collect();
+
+    let span = match (&metering.from, &metering.to) {
+        (Some(from), Some(to)) if from != to => format!("{from} \u{2192} {to}"),
+        (Some(from), _) => from.clone(),
+        _ => String::new(),
+    };
+    let mut title = format!(
+        "claude 5-hour windows \u{b7} {} over {span} \u{b7} avg peak {}%",
+        metering.windows.len(),
+        metering.average_peak(),
+    );
+    if hottest >= 90 {
+        title.push_str(&format!(" \u{b7} \u{25b2} hottest {hottest}%"));
+    } else {
+        title.push_str(&format!(" \u{b7} hottest {hottest}%"));
+    }
+    title.push_str(" \u{b7} [m] tokens");
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(12),
+            Constraint::Length(9),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Min(10),
+        ],
+    )
+    .header(header(&[
+        "DAY", "WINDOWS", "AVG PEAK", "MAX PEAK", "VS CAP",
+    ]))
+    .block(panel(&title));
+
+    frame.render_widget(table, area);
+}
+
 // ------------------------------------------------------------------- sites
 
 #[cfg(feature = "sqlite")]
@@ -894,6 +998,11 @@ fn draw_sites(frame: &mut Frame, area: Rect, _app: &App) -> Option<Rows> {
 // ------------------------------------------------------------------- usage
 
 fn draw_usage(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
+    if app.metering_view {
+        draw_metering(frame, area, app);
+        return None;
+    }
+
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(45), Constraint::Min(6)])
@@ -1815,6 +1924,7 @@ fn draw_help(frame: &mut Frame, area: Rect) {
         Line::from("  enter           switch pane, where a view has two"),
         Line::from("  d               token detail under each row"),
         Line::from("  u               Overview chart: spend or tokens"),
+        Line::from("  m               Usage view: tokens or metering windows"),
         Line::from("  [ / \u{5d}           move the chart cursor a bucket"),
         Line::from("  backspace       drop the chart cursor"),
         Line::from("  click           a view, a table row, or a pane"),
@@ -1940,6 +2050,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2017,6 +2128,7 @@ mod tests {
             #[cfg(feature = "sqlite")]
             sites: Default::default(),
             usage: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2149,6 +2261,70 @@ mod tests {
         assert!(!out.contains("$0.00"));
     }
 
+    /// `m` swaps the Usage view for the plan's own meter and back, shows the
+    /// per-day peaks, and does nothing on any other view.
+    #[test]
+    fn the_usage_view_toggles_to_metering_windows() {
+        let mut app = populated();
+        app.set_tab(Tab::Overview);
+        app.toggle_metering();
+        assert!(!app.metering_view, "a no-op off the Usage view");
+
+        app.set_tab(Tab::Usage);
+        app.scan.metering = crate::scan::meter::Metering {
+            windows: vec![
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-27".to_string(),
+                    peak: 75,
+                },
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-27".to_string(),
+                    peak: 43,
+                },
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-28".to_string(),
+                    peak: 95,
+                },
+            ],
+            from: Some("2026-07-27".to_string()),
+            to: Some("2026-07-28".to_string()),
+            found: true,
+        };
+        app.toggle_metering();
+        assert!(app.metering_view);
+        assert_eq!(app.row_count(), 0, "the meter has nothing to select");
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("claude 5-hour windows"), "the panel title");
+        assert!(out.contains("MAX PEAK"), "the table header");
+        assert!(out.contains("2026-07-27"));
+        assert!(out.contains("59%"), "avg of 75 and 43 on the hot day");
+        assert!(
+            out.contains("\u{25b2} 95%"),
+            "90%+ is flagged, not just shown"
+        );
+        assert!(out.contains("hottest 95%"), "the title carries the summary");
+
+        app.toggle_metering();
+        assert!(!app.metering_view);
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("tokens by model"), "back to the token chart");
+    }
+
+    /// A machine without the history file states the absence — never a zero
+    /// that would read as an idle plan.
+    #[test]
+    fn missing_metering_history_is_an_absence_not_a_zero() {
+        let mut app = populated();
+        app.set_tab(Tab::Usage);
+        assert!(!app.scan.metering.found, "the fixture has no history");
+        app.toggle_metering();
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("No metering history on this machine."));
+        assert!(!out.contains("MAX PEAK"), "no empty table pretending");
+    }
+
     #[test]
     fn the_projects_view_lists_every_attributed_repository() {
         let mut app = populated();
@@ -2189,6 +2365,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2240,6 +2417,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2691,6 +2869,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2968,6 +3147,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3046,6 +3226,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3069,6 +3250,7 @@ mod tests {
             #[cfg(feature = "sqlite")]
             sites: Default::default(),
             usage: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };

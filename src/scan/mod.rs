@@ -12,6 +12,7 @@
 //! release profile deliberately does not set `panic = "abort"`.
 
 pub mod apps;
+pub mod meter;
 #[cfg(feature = "sqlite")]
 pub mod sites;
 pub mod tooling;
@@ -32,6 +33,8 @@ pub struct Scan {
     #[cfg(feature = "sqlite")]
     pub sites: sites::Sites,
     pub usage: usage::Usage,
+    /// Claude's 5-hour metering windows, from Claude Desktop's own samples.
+    pub metering: meter::Metering,
     /// Sections that panicked, by name. Empty is the normal case.
     pub failed: Vec<&'static str>,
     /// Built by [`crate::demo`] rather than read off this machine. Never true
@@ -85,6 +88,9 @@ pub fn run(config: &Config, state_dir: &Path) -> (Scan, Timings) {
     .unwrap_or_default();
     timings.usage_ms = mark.elapsed().as_millis();
 
+    // One small file, read whole; not worth a timing of its own.
+    let metering = section("metering", &mut failed, meter::scan).unwrap_or_default();
+
     timings.total_ms = started.elapsed().as_millis();
 
     (
@@ -94,6 +100,7 @@ pub fn run(config: &Config, state_dir: &Path) -> (Scan, Timings) {
             #[cfg(feature = "sqlite")]
             sites,
             usage,
+            metering,
             failed,
             demo: false,
         },
