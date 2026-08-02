@@ -31,7 +31,17 @@ publishing empty notes.
   arithmetic, not a bill, and the old line said nothing the absence of `≥`
   did not already say. With unpriced models the `▲ N model(s) unpriced`
   caveat still takes the line.
-  
+- **The Overview cards say what kind of money they are, in order.** SPEND,
+  TOKENS, TOKEN COST, AVG USAGE RATE, TOOLS & SITES — the actual bill first,
+  the work done, the API-rate hypothetical it would have cost, how hard the
+  plan is being driven, the machine's inventory last. SPEND now carries only
+  real money: the saving-vs-API-rates line moved off it (the comparison lives
+  on TOKEN COST and in the Cost view), and in its place the card says whether
+  extra usage is in play — `no extra usage` while the metering windows have
+  never pegged, `▲ extra usage likely` once one has. AVG USAGE RATE is new:
+  the mean peak of the 5-hour metering windows, the number that predicts a
+  cap hit before it bills. TOOLS and AI SITES folded into one card.
+
 ### Added
 
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
