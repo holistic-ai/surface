@@ -167,6 +167,15 @@ pub struct RepoRow {
     /// Last day this repository saw any usage, `YYYY-MM-DD`. Empty only if the
     /// row somehow has no days under it, which the builder cannot produce.
     pub last_day: String,
+    /// The tools whose sessions ran in this repository, in series order.
+    /// Two slugs like `HAI Neo` and `owner/hai-neo` are otherwise
+    /// indistinguishable as "the Codex one" and "the Claude Code one".
+    ///
+    /// From [`Ledger::tools_by_repo`], so it answers "which tools ran here":
+    /// session attribution is first-wins, and a session that moved between
+    /// checkouts marks only the repository it started in — which is also the
+    /// one way this can be empty.
+    pub tools: Vec<String>,
 }
 
 /// One session's usage over the window, for the breakdown under a project.
@@ -408,6 +417,23 @@ impl App {
             })
             .collect();
 
+        // Which tools ran in each repository. The ledger owns that set; the
+        // ordering is presentation — series slots — so a repo's tools read in
+        // the same order (and texture) as the usage chart's legend. That is
+        // alphabetical order today, `series` being the sorted tool list, but
+        // the reorder keeps it an invariant rather than a coincidence.
+        let mut tools_by_repo: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (repo, set) in self.ledger().tools_by_repo() {
+            let mut tools: Vec<String> = set.into_iter().collect();
+            tools.sort_by_key(|tool| {
+                self.series
+                    .iter()
+                    .position(|s| s == tool)
+                    .unwrap_or(usize::MAX)
+            });
+            tools_by_repo.insert(repo, tools);
+        }
+
         let mut repos: Vec<RepoRow> = self
             .ledger()
             .by_project()
@@ -426,6 +452,7 @@ impl App {
                 }
                 RepoRow {
                     last_day: last_day.get(&repo).cloned().unwrap_or_default(),
+                    tools: tools_by_repo.remove(&repo).unwrap_or_default(),
                     repo,
                     tokens: tokens.total(),
                     messages: tokens.messages,
