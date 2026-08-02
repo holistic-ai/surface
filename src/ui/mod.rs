@@ -2187,11 +2187,17 @@ mod tests {
     /// never both.
     #[test]
     fn the_spend_card_qualifies_its_dollars() {
+        // Cache rates included: the fixture's tokens carry cache reads, and a
+        // table that omits their rate is not "all priced" — it is a floor.
         let all_priced = crate::pricing::Prices::parse(
             r#"{"claude-opus-5": {"input_cost_per_token": 0.000005,
-                                  "output_cost_per_token": 0.000025},
+                                  "output_cost_per_token": 0.000025,
+                                  "cache_read_input_token_cost": 5e-7,
+                                  "cache_creation_input_token_cost": 6e-6},
                 "gpt-5.6-sol": {"input_cost_per_token": 0.000001,
-                                "output_cost_per_token": 0.000004}}"#,
+                                "output_cost_per_token": 0.000004,
+                                "cache_read_input_token_cost": 1e-7,
+                                "cache_creation_input_token_cost": 2e-6}}"#,
         )
         .expect("a two-model table parses");
         let mut app = populated_with(all_priced);
