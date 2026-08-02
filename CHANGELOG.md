@@ -46,6 +46,14 @@ publishing empty notes.
   Cost view's subscription table picks up detected plans the same way, still
   suffixed `est`. Detected plans persist in the ledger (now version 5, so the
   first scan after upgrading re-reads transcripts once).
+- **The Usage view can show the plan's own meter.** <kbd>m</kbd> swaps the
+  token table for Claude's 5-hour metering windows — per day, how many were
+  started and the peak utilisation each reached, with the deepest window
+  drawn as a bar against the cap itself. Reconstructed from the samples
+  Claude Desktop already keeps in `plan-usage-history.json`; timestamps and
+  percentages are all that is read, the org id in the file is never kept, and
+  a machine without the file gets the absence stated rather than a zero. The
+  window count is a floor — samples exist only while Claude Desktop runs.
 - **The Projects view names the tools behind each repository.** Each project
   row ends in a `TOOLS` column listing the tools whose sessions ran there,
   behind the same series texture the usage chart keys that tool by — so two

@@ -28,6 +28,7 @@
 use chrono::{Datelike, Duration, Utc, Weekday};
 
 use crate::ledger::{Ledger, Tokens};
+use crate::scan::meter;
 #[cfg(feature = "sqlite")]
 use crate::scan::sites;
 use crate::scan::{tooling, usage, Scan, Timings};
@@ -51,6 +52,7 @@ pub fn scan() -> (Scan, Timings) {
             #[cfg(feature = "sqlite")]
             sites: sites(),
             usage: usage(),
+            metering: metering(),
             failed: Vec::new(),
             demo: true,
         },
@@ -206,6 +208,36 @@ fn sites() -> sites::Sites {
         }],
         blind_spots: Vec::new(),
         disabled: false,
+    }
+}
+
+// ----------------------------------------------------------------- metering
+
+/// Fourteen days of 5-hour windows: mostly shallow, two hot days, one brush
+/// with the cap — the states a viewer needs to see, none of them invented
+/// past what a real fortnight looks like.
+fn metering() -> meter::Metering {
+    let mut rng = Rng(SEED ^ 0x11E7E4);
+    let today = Utc::now().date_naive();
+    let mut windows = Vec::new();
+    for days_ago in (0..14).rev() {
+        let day = (today - Duration::days(days_ago)).format("%Y-%m-%d");
+        for _ in 0..rng.range(1, 3) {
+            let peak = match rng.range(1, 6) {
+                1 => rng.range(45, 92), // a hot window
+                _ => rng.range(2, 35),  // an ordinary one
+            };
+            windows.push(meter::MeterWindow {
+                day: day.to_string(),
+                peak,
+            });
+        }
+    }
+    meter::Metering {
+        from: windows.first().map(|w| w.day.clone()),
+        to: windows.last().map(|w| w.day.clone()),
+        windows,
+        found: true,
     }
 }
 
