@@ -58,7 +58,7 @@ one of those is a caveat rather than a count.
 
 | Card | Figure | Qualifiers |
 |---|---|---|
-| **SPEND** | Total cost over the window | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` if any |
+| **SPEND** | Total cost over the window | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
 | **TOKENS** | Everything billable, cache included | Message count, distinct model count |
 | **TOOLS** | AI tools detected | `▲ N autonomous`, vendor count |
 | **AI SITES** | Distinct AI domains visited | Visit total, and `▲ N browser(s) unreadable` if any |
@@ -286,7 +286,7 @@ walks projects and the chart follows.
 | **MESSAGES** | Records counted, after deduplication |
 | **COST** | `$12.40`, or `≥$12.40` when unpriced models sit under it |
 | **LAST USED** | Last day this project saw any usage |
-| | Share of the busiest project's tokens, as a bar |
+| **TOOLS** | The tools whose sessions ran here, each behind its series texture |
 
 ```
 ┌ acme/platform · 30 buckets · 568M total · peak 67.4M · [w] regroup ──────────┐
@@ -299,12 +299,12 @@ walks projects and the chart follows.
 │       █ claude_code  ▓ codex  ▒ ollama  ░ opencode                           │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌ 16 projects over 30 days · ▲ 1 ≥ a floor ───┐┌ 72 sessions in this project ══╗
-│PROJECT              TOKENS     COST         ││● invoice rounding bug   $56.17│
+│PROJECT         TOKENS COST     TOOLS        ││● invoice rounding bug   $56.17│
 │                                             ││  claude_code · 2026-07-28 · 3…│
-│acme/platform        568M       $628.71  ████││● flaky checkout test    $32.80│
-│acme/webapp          200M       $268.07  ██  ││  opencode · 2026-07-27 · 34.8…│
-│acme/mobile-app      123M       $183.33  █   ││● cache keys collide u…  $30.22│
-│(unattributed)       125M       $150.56  █   ││  claude_code · 2026-07-26 · 1…│
+│acme/platform   568M   $628.71  █ claude_cod…││● flaky checkout test    $32.80│
+│acme/webapp     200M   $268.07  ░ opencode   ││  opencode · 2026-07-27 · 34.8…│
+│acme/mobile-app 123M   $183.33  ▓ codex      ││● cache keys collide u…  $30.22│
+│(unattributed)  125M   $150.56  █ claude_cod…││  claude_code · 2026-07-26 · 1…│
 └─────────────────────────────────────────────┘╚═══════════════════════════════╝
 ```
 
@@ -398,9 +398,9 @@ per-series totals. Two properties they hold to:
   Ink and Paper, the same ramp as this site — so tools are told apart by texture
   rather than hue: `█ ▓ ▒ ░`, heaviest at the bottom of a stack. Each one's grey
   compensates its own density, because `░` inks a quarter of its cell and in the
-  same grey as `█` would read a quarter as strongly. Only the Projects chart and
-  the sessions pane use textures now; every chart with a palette is keyed by
-  model.
+  same grey as `█` would read a quarter as strongly. Only the Projects chart,
+  its table's TOOLS column and the sessions pane use textures now; every chart
+  with a palette is keyed by model.
 
     Models get real colour, from the brand's blue ramp, because a model is the one
     thing a reader needs to trace between a chart and a table. Six are named and
