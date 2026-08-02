@@ -2394,6 +2394,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2440,6 +2441,7 @@ mod tests {
                 window_days: 30,
                 ..Default::default()
             },
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
