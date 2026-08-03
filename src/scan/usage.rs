@@ -88,6 +88,10 @@ pub struct Record {
     /// Working directory the record was produced in, when the format carries
     /// one. Resolved to a repository slug during ingest and never stored.
     pub cwd: Option<String>,
+    /// The subscription plan the record names, when the format carries one —
+    /// Codex writes `rate_limits.plan_type` on every usage record. Not account
+    /// state: it is read from the same line as the token counts.
+    pub plan: Option<String>,
 }
 
 /// What the usage scan read, alongside the ledger it read into.
@@ -404,6 +408,7 @@ pub fn parse_opencode(id: &str, value: &serde_json::Value) -> Option<Record> {
             .and_then(|p| p.get("cwd"))
             .and_then(|c| c.as_str())
             .map(str::to_string),
+        plan: None,
     })
 }
 
@@ -509,6 +514,9 @@ fn ingest_file(
                 .unwrap_or_else(|| UNATTRIBUTED.to_string());
             apply(ledger, tool, accumulation, &record, &project, &session);
             ledger.observe_session(&session, tool, &project, header.title.as_deref());
+            if let Some(plan) = &record.plan {
+                ledger.observe_plan(tool, plan);
+            }
         }
     }
 
@@ -838,6 +846,7 @@ pub fn parse_claude_code(value: &serde_json::Value) -> Option<Record> {
             .get("cwd")
             .and_then(|c| c.as_str())
             .map(str::to_string),
+        plan: None,
     })
 }
 
@@ -900,6 +909,11 @@ pub fn parse_codex(value: &serde_json::Value) -> Option<Record> {
         // Codex names the directory once in the session header, so this is
         // filled from there during ingest rather than parsed per record.
         cwd: None,
+        // `rate_limits.plan_type`, on the same record as the counts.
+        plan: find_key(value, "plan_type", 0)
+            .and_then(|p| p.as_str())
+            .filter(|p| !p.is_empty())
+            .map(str::to_string),
     })
 }
 
@@ -1142,6 +1156,54 @@ mod tests {
         let r = parse_line("codex", line.as_bytes()).unwrap();
         assert_eq!(r.tokens.input, 0);
         assert_eq!(r.tokens.cache_read, 10);
+    }
+
+    /// A Codex usage record, with the `rate_limits` block real ones carry.
+    fn codex_line_on_plan(total: u64, plan: &str) -> String {
+        json!({
+            "timestamp": "2026-07-26T12:00:00.000Z",
+            "session_id": "s1",
+            "payload": {
+                "info": { "total_token_usage": {
+                    "input_tokens": total / 2,
+                    "cached_input_tokens": total / 4,
+                    "output_tokens": total / 4,
+                    "total_tokens": total
+                }},
+                "rate_limits": {"limit_id": "codex", "plan_type": plan}
+            }
+        })
+        .to_string()
+            + "\n"
+    }
+
+    #[test]
+    fn parses_the_plan_codex_names_beside_its_counts() {
+        let line = codex_line_on_plan(1000, "team");
+        let r = parse_line("codex", line.as_bytes()).unwrap();
+        assert_eq!(r.plan.as_deref(), Some("team"));
+
+        let r = parse_line("codex", codex_line("s1", 1000).as_bytes()).unwrap();
+        assert_eq!(r.plan, None, "no rate_limits block, no plan");
+    }
+
+    #[test]
+    fn a_codex_plan_is_read_into_the_ledger() {
+        let dir = temp_dir("plan");
+        let mut ledger = Ledger::default();
+        ingest(
+            &dir,
+            "c.jsonl",
+            "codex",
+            Accumulation::CumulativePerSession,
+            &codex_line_on_plan(400, "team"),
+            &mut ledger,
+        );
+        assert_eq!(
+            ledger.plans.get("codex").map(String::as_str),
+            Some("team"),
+            "the plan the transcript names is kept, keyed by tool"
+        );
     }
 
     #[test]
