@@ -31,17 +31,19 @@ publishing empty notes.
   arithmetic, not a bill, and the old line said nothing the absence of `≥`
   did not already say. With unpriced models the `▲ N model(s) unpriced`
   caveat still takes the line.
-  
+- **The Overview cards say what kind of money they are, in order.** SPEND,
+  TOKENS, TOKEN COST, AVG USAGE RATE, TOOLS & SITES — the actual bill first,
+  the work done, the API-rate hypothetical it would have cost, how hard the
+  plan is being driven, the machine's inventory last. SPEND now carries only
+  real money: the saving-vs-API-rates line moved off it (the comparison lives
+  on TOKEN COST and in the Cost view), and in its place the card says whether
+  extra usage is in play — `no extra usage` while the metering windows have
+  never pegged, `▲ extra usage likely` once one has. AVG USAGE RATE is new:
+  the mean peak of the 5-hour metering windows, the number that predicts a
+  cap hit before it bills. TOOLS and AI SITES folded into one card.
+
 ### Added
 
-- **The Usage view can show the plan's own meter.** <kbd>m</kbd> swaps the
-  token table for Claude's 5-hour metering windows — per day, how many were
-  started and the peak utilisation each reached, with the deepest window
-  drawn as a bar against the cap itself. Reconstructed from the samples
-  Claude Desktop already keeps in `plan-usage-history.json`; timestamps and
-  percentages are all that is read, the org id in the file is never kept, and
-  a machine without the file gets the absence stated rather than a zero. The
-  window count is a floor — samples exist only while Claude Desktop runs.
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers
@@ -54,6 +56,14 @@ publishing empty notes.
   Cost view's subscription table picks up detected plans the same way, still
   suffixed `est`. Detected plans persist in the ledger (now version 5, so the
   first scan after upgrading re-reads transcripts once).
+- **The Usage view can show the plan's own meter.** <kbd>m</kbd> swaps the
+  token table for Claude's 5-hour metering windows — per day, how many were
+  started and the peak utilisation each reached, with the deepest window
+  drawn as a bar against the cap itself. Reconstructed from the samples
+  Claude Desktop already keeps in `plan-usage-history.json`; timestamps and
+  percentages are all that is read, the org id in the file is never kept, and
+  a machine without the file gets the absence stated rather than a zero. The
+  window count is a floor — samples exist only while Claude Desktop runs.
 - **The Projects view names the tools behind each repository.** Each project
   row ends in a `TOOLS` column listing the tools whose sessions ran there,
   behind the same series texture the usage chart keys that tool by — so two

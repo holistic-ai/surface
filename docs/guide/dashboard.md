@@ -59,21 +59,23 @@ one of those is a caveat rather than a count.
 
 | Card | Figure | Qualifiers |
 |---|---|---|
-| **SPEND** | What the seats actually cost, `$X/mo` | Where the figures came from (`N configured seat(s)`, `N plan(s) detected`), the saving against API rates, and `▲ N tool(s) unpriced` if any |
-| **TOKEN COST** | The window's tokens at API list rates | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
+| **SPEND** | What is actually paid: the seats, `$X/mo` | Where the figures came from (`N configured seat(s)`, `N plan(s) detected`), whether extra usage is in play (`no extra usage`, or `▲ extra usage likely` once a metering window has pegged), and `▲ N tool(s) unpriced` if any |
 | **TOKENS** | Everything billable, cache included | Message count, distinct model count |
-| **TOOLS** | AI tools detected | `▲ N autonomous`, vendor count |
-| **AI SITES** | Distinct AI domains visited | Visit total, and `▲ N browser(s) unreadable` if any |
+| **TOKEN COST** | The window's tokens at API list rates | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
+| **AVG USAGE RATE** | Mean peak of the 5-hour metering windows | Window count, hottest window (`▲` amber from 90%), and the pointer to <kbd>m</kbd> on Usage for the per-day breakdown |
+| **TOOLS & SITES** | Installed tools `·` AI domains visited | `▲ N autonomous`, visit total, and `▲ N browser(s) unreadable` if any |
 
-SPEND and TOKEN COST are different questions about the same tokens. TOKEN COST
-is arithmetic — the window's usage priced per token at list rates. SPEND is
-what is actually paid for the seats behind that usage: a figure from
-`[cost.subscriptions]` is shown plainly; one from a plan the tool's own
-transcripts name (Codex writes `plan_type` beside its token counts) is priced
-at that plan's list rate and marked `≈` an estimate; a tool with usage but no
-figure makes the total `≥` a floor. Knowing nothing, the card shows `–` and
-says how to configure it — it never guesses, and it still reads no account
-state.
+The order is deliberate: the actual bill first, then the work done, then what
+that work *would* have cost, then how hard the plan is being driven, then the
+machine's inventory. SPEND carries only real money — seats from
+`[cost.subscriptions]` shown plainly, a plan the tool itself names priced at
+list rate and marked `≈` an estimate, a tool with usage but no figure making
+the total `≥` a floor — and the API-rate hypothetical never appears on it;
+that comparison lives on TOKEN COST and in the Cost view. Knowing nothing,
+SPEND shows `–` and says how to configure it — it never guesses, and it still
+reads no account state. AVG USAGE RATE comes from the same metering samples
+as the Usage view's <kbd>m</kbd> toggle, and shows `–` on a machine without
+them rather than a zero that would read as idleness.
 
 ### The rate and the delta
 
