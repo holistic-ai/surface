@@ -2462,6 +2462,7 @@ mod tests {
                 ..Default::default()
             },
             failed: Vec::new(),
+            metering: Default::default(),
             demo: false,
         };
         let mut app = App::new(
@@ -2508,6 +2509,7 @@ mod tests {
                 ..Default::default()
             },
             failed: Vec::new(),
+            metering: Default::default(),
             demo: false,
         };
         let mut cost = CostConfig::default();
