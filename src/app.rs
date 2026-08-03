@@ -214,6 +214,18 @@ impl SessionRow {
     }
 }
 
+/// One day of the plan's own meter: how many 5-hour windows started, and how
+/// deep they ran.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MeterDay {
+    pub day: String,
+    pub windows: usize,
+    /// Mean of the day's window peaks, percent.
+    pub avg_peak: u64,
+    /// Deepest window of the day, percent.
+    pub max_peak: u64,
+}
+
 /// A subscription against what the same usage would have cost on API rates.
 #[derive(Debug, Clone)]
 pub struct SubscriptionRow {
@@ -286,6 +298,10 @@ pub struct App {
     /// tables that have one. On by default: the figures it carries are billed,
     /// and they were invisible before it existed.
     pub detail: bool,
+    /// Whether the Usage view shows the plan's own meter — the 5-hour windows
+    /// and the peak each reached — instead of the token table. Off by
+    /// default: tokens are what the view is named for.
+    pub metering_view: bool,
     pub should_quit: bool,
     pub status_line: Option<String>,
 
@@ -323,6 +339,7 @@ impl App {
             bucket_back: None,
             unit: Unit::Spend,
             detail: true,
+            metering_view: false,
             should_quit: false,
             status_line: None,
             tools: Vec::new(),
@@ -812,6 +829,9 @@ impl App {
             Tab::Overview => 0,
             Tab::Tools => self.tools.len(),
             Tab::Sites => self.site_count(),
+            // The meter has nothing to select: its rows are days, and no
+            // second pane hangs off them.
+            Tab::Usage if self.metering_view => 0,
             Tab::Usage => self.models.len(),
             // Nothing to select over when there are no prices; the footer should
             // not advertise a movement that does nothing.
@@ -1033,6 +1053,48 @@ impl App {
             }
             .to_string(),
         );
+    }
+
+    /// Swap the Usage view between tokens and the plan's own meter. A no-op
+    /// on every other view, so the key cannot invisibly re-arm a mode the
+    /// reader is not looking at.
+    pub fn toggle_metering(&mut self) {
+        if self.tab != Tab::Usage {
+            return;
+        }
+        self.metering_view = !self.metering_view;
+        self.status_line = Some(
+            if self.metering_view {
+                "metering windows"
+            } else {
+                "tokens"
+            }
+            .to_string(),
+        );
+    }
+
+    /// The plan's own meter, grouped by day, oldest first.
+    ///
+    /// Computed on read rather than cached in `rebuild`: a fortnight of
+    /// samples yields a few dozen windows, which is nothing next to the
+    /// ledger walks the cache exists for.
+    pub fn metering_days(&self) -> Vec<MeterDay> {
+        let mut by_day: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+        for window in &self.scan.metering.windows {
+            by_day
+                .entry(window.day.clone())
+                .or_default()
+                .push(window.peak);
+        }
+        by_day
+            .into_iter()
+            .map(|(day, peaks)| MeterDay {
+                windows: peaks.len(),
+                avg_peak: (peaks.iter().sum::<u64>() as f64 / peaks.len() as f64).round() as u64,
+                max_peak: peaks.iter().copied().max().unwrap_or(0),
+                day,
+            })
+            .collect()
     }
 
     pub fn cycle_granularity(&mut self) {

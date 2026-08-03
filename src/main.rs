@@ -233,6 +233,7 @@ fn handle_key(app: &mut App, key: event::KeyEvent) {
         KeyCode::Char('w') => app.cycle_granularity(),
         KeyCode::Char('d') => app.toggle_detail(),
         KeyCode::Char('u') => app.toggle_unit(),
+        KeyCode::Char('m') => app.toggle_metering(),
         KeyCode::Enter => app.toggle_focus(),
         KeyCode::Char('[') => app.move_bucket(1),
         KeyCode::Char(']') => app.move_bucket(-1),

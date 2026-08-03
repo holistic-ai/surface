@@ -34,6 +34,14 @@ publishing empty notes.
   
 ### Added
 
+- **The Usage view can show the plan's own meter.** <kbd>m</kbd> swaps the
+  token table for Claude's 5-hour metering windows — per day, how many were
+  started and the peak utilisation each reached, with the deepest window
+  drawn as a bar against the cap itself. Reconstructed from the samples
+  Claude Desktop already keeps in `plan-usage-history.json`; timestamps and
+  percentages are all that is read, the org id in the file is never kept, and
+  a machine without the file gets the absence stated rather than a zero. The
+  window count is a floor — samples exist only while Claude Desktop runs.
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers
