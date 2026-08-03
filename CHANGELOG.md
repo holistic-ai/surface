@@ -34,6 +34,15 @@ publishing empty notes.
   
 ### Added
 
+- **`[usage.repo_aliases]` folds two names for one project into one row.** A
+  checkout with an `origin` remote reports `owner/name`; a copy of the same
+  code with no remote reports its folder basename; and surface never guesses
+  the two are the same project, because folding spend together on a string
+  resemblance is misattribution. The operator declares it instead —
+  `"HAI Neo" = "holistic-ai/hai-neo"` — and the grouping applies when the
+  ledger is read, never to what is stored, so history regroups retroactively
+  and a wrong alias is one edit away from undone. Project totals, daily rows
+  and the session breakdown all follow the alias.
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers

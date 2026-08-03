@@ -92,6 +92,14 @@ pub struct UsageConfig {
     pub scan: bool,
     /// How many days of daily totals to retain and report.
     pub window_days: u64,
+    /// Project rows to fold into another, `shown name -> fold into`.
+    ///
+    /// The same project legitimately earns two names: a checkout with an
+    /// `origin` remote reports `owner/name`, a copy of the same code with no
+    /// remote reports its folder basename. surface never guesses that two
+    /// names are one project — that would misattribute someone's spend on a
+    /// string resemblance — so the operator declares it here instead.
+    pub repo_aliases: BTreeMap<String, String>,
 }
 
 impl Default for UsageConfig {
@@ -99,6 +107,7 @@ impl Default for UsageConfig {
         Self {
             scan: true,
             window_days: DEFAULT_USAGE_WINDOW_DAYS,
+            repo_aliases: BTreeMap::new(),
         }
     }
 }
@@ -194,6 +203,7 @@ mod tests {
             usage: UsageConfig {
                 scan: true,
                 window_days: 0,
+                ..Default::default()
             },
             ..Config::default()
         };

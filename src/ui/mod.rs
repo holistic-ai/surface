@@ -2249,6 +2249,66 @@ mod tests {
         assert!(!out.contains("$0.00"));
     }
 
+    /// The same project reached two ways — a remote-less scratch folder and
+    /// the real checkout — declared one project by `[usage.repo_aliases]`:
+    /// one row, both names' tokens, and the session breakdown intact.
+    #[test]
+    fn an_aliased_project_is_one_row_and_keeps_both_names_sessions() {
+        let mut ledger = Ledger {
+            titles_enabled: true,
+            ..Default::default()
+        };
+        let t = tokens(1_000, 2_000);
+        ledger.add("2026-07-26", "claude_code", "claude-opus-5", &t);
+        ledger.add_project("2026-07-26", "HAI Neo", "claude-opus-5", &t);
+        ledger.add_session("2026-07-26", "a", "claude-opus-5", &t);
+        ledger.observe_session("a", "claude_code", "HAI Neo", Some("scratch run"));
+        ledger.add("2026-07-27", "claude_code", "claude-opus-5", &t);
+        ledger.add_project("2026-07-27", "holistic-ai/hai-neo", "claude-opus-5", &t);
+        ledger.add_session("2026-07-27", "b", "claude-opus-5", &t);
+        ledger.observe_session(
+            "b",
+            "claude_code",
+            "holistic-ai/hai-neo",
+            Some("checkout run"),
+        );
+        ledger.set_aliases(std::collections::BTreeMap::from([(
+            "HAI Neo".to_string(),
+            "holistic-ai/hai-neo".to_string(),
+        )]));
+
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            CostConfig::default(),
+        );
+        app.set_tab(Tab::Projects);
+
+        assert_eq!(app.repos().len(), 1, "one project, not two rows");
+        let row = &app.repos()[0];
+        assert_eq!(row.repo, "holistic-ai/hai-neo");
+        assert_eq!(row.tokens, 2 * t.total(), "both names' tokens folded in");
+        assert_eq!(
+            app.sessions_in("holistic-ai/hai-neo").len(),
+            2,
+            "sessions recorded under either name attach to the one row"
+        );
+    }
+
     /// The SPEND card prices seats, not tokens: nothing known shows `–` and
     /// says how to fix it, a detected plan is `≈` an estimate at list price,
     /// and a tool without any figure makes the total `≥` a floor.
