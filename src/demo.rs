@@ -567,6 +567,11 @@ fn usage() -> usage::Usage {
         }
     }
 
+    // The plans the tools' own transcripts would name, so the SPEND card has
+    // something to price the seats with.
+    ledger.observe_plan("claude_code", "max_20x");
+    ledger.observe_plan("codex", "team");
+
     usage::Usage {
         ledger,
         tools_read: vec!["claude_code", "codex", "opencode", "ollama"],
