@@ -191,8 +191,10 @@ as zero AI usage. Full detail in
 - **Local models are free**, and shown as `local` rather than `$0.00`, because the
   two mean different things.
 - **These are API list rates.** Put what you actually pay in
-  `[cost.subscriptions]` and the Cost view compares the two. Without that, surface
-  does not guess your plan — it reads no account state.
+  `[cost.subscriptions]` and the Cost view compares the two. Without that, a plan
+  the tool's own transcripts name (Codex writes one beside its token counts) is
+  priced at its list rate and marked an estimate — surface still reads no account
+  state, and a tool naming no plan is never guessed at.
 - **Cache reads are billed at cache rates** and reasoning tokens at output rates,
   which is how the providers that distinguish them do it.
 

@@ -24,8 +24,9 @@ use serde::{Deserialize, Serialize};
 /// Bump when the on-disk shape changes; an older ledger is discarded.
 ///
 /// 2 added per-project attribution to [`DayState`]; 3 added per-session; 4
-/// persisted session metadata, which incremental reads cannot re-derive.
-pub const LEDGER_VERSION: u32 = 4;
+/// persisted session metadata, which incremental reads cannot re-derive; 5
+/// persisted detected plans, which cannot either.
+pub const LEDGER_VERSION: u32 = 5;
 
 /// Namespace for session keys, so the same session id under a different
 /// product yields a different key.
@@ -139,6 +140,11 @@ pub struct Ledger {
     /// one is an edit away from undone.
     #[serde(skip)]
     pub aliases: BTreeMap<String, String>,
+    /// tool -> the subscription plan its transcripts most recently named,
+    /// e.g. `codex -> team`. Persisted for the same reason as `session_meta`:
+    /// a steady-state scan reads no bytes, so anything gathered during a read
+    /// has to survive between scans or it only exists on cold ones.
+    pub plans: BTreeMap<String, String>,
     /// Whether titles were being collected when this ledger was written.
     pub titles_enabled: bool,
     /// Cumulative counters, reported so a consumer can see dedup ran.
@@ -155,6 +161,7 @@ impl Default for Ledger {
             days: BTreeMap::new(),
             session_meta: BTreeMap::new(),
             aliases: BTreeMap::new(),
+            plans: BTreeMap::new(),
             titles_enabled: false,
             duplicates_skipped: 0,
             undedupable_records: 0,
@@ -301,6 +308,13 @@ impl Ledger {
         // and dedup keys keep them from being counted twice.
         self.sources.clear();
         true
+    }
+
+    /// Record the plan a tool's transcript names. Last one wins: records are
+    /// read in file order, so the latest read reflects a plan change — an
+    /// upgrade mid-window should show the plan being paid for now.
+    pub fn observe_plan(&mut self, tool: &str, plan: &str) {
+        self.plans.insert(tool.to_string(), plan.to_string());
     }
 
     /// Record what a session is. Called during ingest, kept afterwards.
@@ -801,6 +815,24 @@ mod tests {
         assert_eq!(
             loaded.plan(Path::new("/tmp/a.jsonl"), 10, 20),
             ReadPlan::Skip
+        );
+    }
+
+    /// Plans are gathered during a read and steady-state scans read nothing,
+    /// so a plan that fails to persist exists only on cold scans — the same
+    /// trap session metadata fell into before it was persisted.
+    #[test]
+    fn a_detected_plan_survives_the_round_trip_and_the_last_one_wins() {
+        let dir = temp_dir("plans");
+        let path = ledger_path(&dir);
+        let mut ledger = Ledger::default();
+        ledger.observe_plan("codex", "pro");
+        ledger.observe_plan("codex", "team");
+        ledger.save(&path).unwrap();
+
+        assert_eq!(
+            Ledger::load(&path).plans.get("codex").map(String::as_str),
+            Some("team")
         );
     }
 

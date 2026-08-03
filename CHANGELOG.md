@@ -43,6 +43,18 @@ publishing empty notes.
   ledger is read, never to what is stored, so history regroups retroactively
   and a wrong alias is one edit away from undone. Project totals, daily rows
   and the session breakdown all follow the alias.
+- **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
+  The Overview's old SPEND figure — the window's tokens at API list rates — now
+  sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers
+  the other question: what the seats behind that usage actually cost per month.
+  Figures come from `[cost.subscriptions]`, or failing that from the plan a
+  tool's own transcripts name (Codex writes `rate_limits.plan_type` beside its
+  token counts), priced at that plan's list rate and marked `≈` an estimate. A
+  tool with usage but no figure makes the total `≥` a floor; knowing nothing,
+  the card shows `–` and says how to configure it rather than guessing. The
+  Cost view's subscription table picks up detected plans the same way, still
+  suffixed `est`. Detected plans persist in the ledger (now version 5, so the
+  first scan after upgrading re-reads transcripts once).
 - **The Projects view names the tools behind each repository.** Each project
   row ends in a `TOOLS` column listing the tools whose sessions ran there,
   behind the same series texture the usage chart keys that tool by — so two
