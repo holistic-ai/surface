@@ -15,6 +15,23 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Codex usage is priced again on current Codex versions.** Newer Codex no
+  longer names the model in `session_meta`; it lives on each turn's
+  `turn_context` record and can change mid-session. The scan now follows those
+  records, attributing every usage record to the model that actually produced
+  it, instead of filing entire sessions under `unknown`/`▲ unpriced`. The
+  session-header read is also no longer cut off at a fixed 64 KiB, which
+  truncated exactly the line that names the model.
+### Changed
+
+- **The SPEND card says what its dollars are.** Its last qualifier now reads
+  `at API list rates` instead of `all models priced` — the figure is list-rate
+  arithmetic, not a bill, and the old line said nothing the absence of `≥`
+  did not already say. With unpriced models the `▲ N model(s) unpriced`
+  caveat still takes the line.
+  
 ### Added
 
 - **Tools name the plan they are signed into, and what the seat costs.** The
@@ -46,6 +63,12 @@ publishing empty notes.
   Cost view's subscription table picks up detected plans the same way, still
   suffixed `est`. Detected plans persist in the ledger (now version 5, so the
   first scan after upgrading re-reads transcripts once).
+- **The Projects view names the tools behind each repository.** Each project
+  row ends in a `TOOLS` column listing the tools whose sessions ran there,
+  behind the same series texture the usage chart keys that tool by — so two
+  rows like `HAI Neo` and `owner/hai-neo` finally read as "the Codex checkout"
+  and "the Claude Code one". It replaces the share bar, which repeated TOKENS
+  as decoration.
 
 ## [0.1.0] - 2026-07-28
 

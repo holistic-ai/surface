@@ -371,6 +371,24 @@ impl Ledger {
         totals
     }
 
+    /// The tools whose sessions ran in each repository, from the session
+    /// metadata [`observe_session`](Self::observe_session) keeps.
+    ///
+    /// The projects map itself has no tool axis, so this answers "which tools
+    /// ran here", not "which tool produced every token": attribution is per
+    /// session and first-wins, so a session that moved between checkouts
+    /// marks only the repository it started in.
+    pub fn tools_by_repo(&self) -> BTreeMap<String, BTreeSet<String>> {
+        let mut tools: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for meta in self.session_meta.values() {
+            tools
+                .entry(meta.repo.clone())
+                .or_default()
+                .insert(meta.tool.clone());
+        }
+        tools
+    }
+
     /// Daily rows per repository, newest first — [`rows`](Self::rows) with the
     /// project axis in place of the tool one.
     ///
