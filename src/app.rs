@@ -472,7 +472,7 @@ impl App {
                     tokens.add(t);
                     let cost = self.prices.cost(model, t);
                     usd += cost.usd();
-                    if cost.is_unpriced() {
+                    if cost.not_fully_priced() {
                         unpriced += 1;
                     }
                 }
@@ -504,7 +504,7 @@ impl App {
                     tokens.add(t);
                     let cost = self.prices.cost(model, t);
                     usd += cost.usd();
-                    if cost.is_unpriced() {
+                    if cost.not_fully_priced() {
                         unpriced += 1;
                     }
                 }
@@ -642,7 +642,10 @@ impl App {
 
     /// Models with no price. A total with these under it is a floor, not a figure.
     pub fn unpriced_models(&self) -> usize {
-        self.models.iter().filter(|m| m.cost.is_unpriced()).count()
+        self.models
+            .iter()
+            .filter(|m| m.cost.not_fully_priced())
+            .count()
     }
 
     /// Spend per tool over the window, biggest first.
@@ -673,7 +676,7 @@ impl App {
         for model in &self.models {
             let entry = per_model.entry(model.model.clone()).or_default();
             entry.0 += model.cost.usd();
-            entry.1 += usize::from(model.cost.is_unpriced());
+            entry.1 += usize::from(model.cost.not_fully_priced());
         }
         let mut rows: Vec<(String, f64, usize)> = per_model
             .into_iter()

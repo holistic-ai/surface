@@ -346,7 +346,7 @@ fn print_json(scan: &scan::Scan, timings: &scan::Timings, prices: &pricing::Pric
                 total.add(t);
                 let cost = prices.cost(model, t);
                 usd += cost.usd();
-                if cost.is_unpriced() {
+                if cost.not_fully_priced() {
                     unpriced += 1;
                 }
             }
@@ -421,6 +421,9 @@ fn cost_json(cost: &pricing::Cost) -> serde_json::Value {
     use serde_json::json;
     match cost {
         pricing::Cost::Known(usd) => json!({"state": "known", "usd": usd}),
+        // A floor carries its figure, unlike unpriced: the dollars are real,
+        // there are just at least that many.
+        pricing::Cost::Floor(usd) => json!({"state": "floor", "usd": usd}),
         pricing::Cost::Local => json!({"state": "local", "usd": 0.0}),
         pricing::Cost::Unpriced => json!({"state": "unpriced", "usd": null}),
     }

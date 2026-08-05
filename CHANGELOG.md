@@ -17,6 +17,17 @@ publishing empty notes.
 
 ### Fixed
 
+- **A missing cache rate no longer bills cache tokens at a silent zero.**
+  (#16) For a model whose price-table entry omits `cache_read_input_token_cost`
+  or `cache_creation_input_token_cost`, those tokens were priced at zero and
+  the result presented as exact — breaking "unpriced is not free" inside the
+  one number the tool exists to report. Cache creation now falls back to the
+  input rate and cache reads to zero, both of which understate, and the result
+  is a **floor**: `≥` on the figure, `floor` as the `--json` cost state, and
+  counted into every total's `≥` marker. A rate listed as `0.0` still prices
+  as zero exactly, because the table said so — only an *absent* rate floors.
+  Cache-only table entries also survive parsing now instead of being dropped
+  with the embeddings.
 - **Codex usage is priced again on current Codex versions.** Newer Codex no
   longer names the model in `session_meta`; it lives on each turn's
   `turn_context` record and can change mid-session. The scan now follows those
