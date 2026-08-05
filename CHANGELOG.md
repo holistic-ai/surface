@@ -45,6 +45,23 @@ publishing empty notes.
   
 ### Added
 
+- **Tools name the plan they are signed into, and what the seat costs.** The
+  Tools view gains PLAN and `$/MO` columns, and the SPEND card and Cost view
+  price the same figure: Claude Code's `~/.claude.json` names the seat —
+  priced by its rate-limit tier when that names a known capacity, because a
+  Team premium seat reads the same seat slug as a standard one and pricing by
+  it under-reported a real premium seat by 70% — and Codex's
+  `~/.codex/auth.json` token payload names `chatgpt_plan_type`. The account
+  file — what the tool is on *now* — beats the plan its transcripts name, and
+  `[cost.subscriptions]` beats both; the `≈` on an estimated figure marks
+  exactly what one config line makes exact. Only the plan's name is read from
+  those files, never the credentials beside it, and nothing is fetched.
+  `--json` carries it as `tools.list[].plan` with its source. The built-in
+  table prices ChatGPT's `team` plan at $25 after OpenAI's April 2026
+  repricing of Business, splitting it from Claude's `team_tier_1` at $30 —
+  the table carries monthly-billing list rates, and annual billing being
+  lower is one more reason every figure from it is marked an estimate.
+
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
   The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers

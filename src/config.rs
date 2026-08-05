@@ -124,16 +124,34 @@ impl CostConfig {
         if let Some(configured) = self.subscriptions.get(tool) {
             return Some((*configured, false));
         }
-        let plan = plan?.to_lowercase();
-        let listed = match plan.as_str() {
-            "pro" | "plus" => 20.0,
-            "max_5x" | "default_claude_max_5x" => 100.0,
-            "max_20x" => 200.0,
-            "team" | "team_tier_1" => 30.0,
-            // Enterprise and API-key access have no list price to assume.
-            _ => return None,
-        };
-        Some((listed, true))
+        Some((list_price(plan?)?, true))
+    }
+}
+
+/// The published list price for a plan slug, if it has one.
+///
+/// Also how plan *detection* decides which of two slugs is worth keeping —
+/// see [`crate::scan::plans`] — so an unknown plan returns `None` rather than
+/// a guess in both places. Enterprise and API-key access have no list price
+/// to assume.
+///
+/// These are **monthly-billing** list rates; annual billing is lower (ChatGPT
+/// Business is $20/seat annual against the $25 here), which is one more
+/// reason every figure from this table is marked an estimate and a
+/// `[cost.subscriptions]` entry wins. Each slug belongs to one vendor's
+/// namespace — a collision with a different price would need this table keyed
+/// by tool as well, so keep them labelled.
+pub(crate) fn list_price(plan: &str) -> Option<f64> {
+    match plan.to_lowercase().as_str() {
+        // Claude: seat and rate-limit tiers.
+        "pro" | "plus" => Some(20.0),
+        "max_5x" | "default_claude_max_5x" => Some(100.0),
+        "max_20x" | "default_claude_max_20x" => Some(200.0),
+        "team_tier_1" => Some(30.0),
+        // ChatGPT: `chatgpt_plan_type`. Business (né Team) was repriced
+        // 2026-04-02 from $30 to $25 monthly.
+        "team" => Some(25.0),
+        _ => None,
     }
 }
 
@@ -218,6 +236,19 @@ mod tests {
         assert_eq!(
             cost.monthly("claude_code", Some("max_20x")),
             Some((200.0, true))
+        );
+    }
+
+    #[test]
+    fn the_two_team_slugs_price_by_their_own_vendor() {
+        // ChatGPT Business (`team`) was repriced to $25 monthly in April
+        // 2026; Claude's `team_tier_1` seat stays $30. One shared arm was
+        // quietly wrong for one vendor.
+        let cost = CostConfig::default();
+        assert_eq!(cost.monthly("codex", Some("team")), Some((25.0, true)));
+        assert_eq!(
+            cost.monthly("claude_code", Some("team_tier_1")),
+            Some((30.0, true))
         );
     }
 
