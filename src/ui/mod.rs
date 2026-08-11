@@ -2450,7 +2450,8 @@ mod tests {
 
     /// The TOKEN COST card names what its dollars are: list-rate arithmetic
     /// when every model is priced, the unpriced caveat when one is not — one
-    /// line, never both.
+    /// line, never both. Renamed with the card, and rendered at 150: five
+    /// cards narrow each one, and the qualifier must survive whole.
     #[test]
     fn the_token_cost_card_qualifies_its_dollars() {
         // Cache rates included: the fixture's tokens carry cache reads, and a

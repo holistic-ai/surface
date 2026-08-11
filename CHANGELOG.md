@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 Notable changes to surface, newest first. The format follows [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/) and the versioning follows
@@ -15,81 +15,99 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A missing cache rate no longer bills cache tokens at a silent zero.**
+  (#16) For a model whose price-table entry omits `cache_read_input_token_cost`
+  or `cache_creation_input_token_cost`, those tokens were priced at zero and
+  the result presented as exact — breaking "unpriced is not free" inside the
+  one number the tool exists to report. Cache creation now falls back to the
+  input rate and cache reads to zero, both of which understate, and the result
+  is a **floor**: `≥` on the figure, `floor` as the `--json` cost state, and
+  counted into every total's `≥` marker. A rate listed as `0.0` still prices
+  as zero exactly, because the table said so — only an *absent* rate floors.
+  Cache-only table entries also survive parsing now instead of being dropped
+  with the embeddings.
+- **Codex usage is priced again on current Codex versions.** Newer Codex no
+  longer names the model in `session_meta`; it lives on each turn's
+  `turn_context` record and can change mid-session. The scan now follows those
+  records, attributing every usage record to the model that actually produced
+  it, instead of filing entire sessions under `unknown`/`▲ unpriced`. The
+  session-header read is also no longer cut off at a fixed 64 KiB, which
+  truncated exactly the line that names the model.
+
 ### Changed
 
 - **The Overview cards say what kind of money they are, in order.** SPEND,
-  TOKENS, TOKEN COST, AVG USAGE RATE, TOOLS & SITES - the actual bill first,
+  TOKENS, TOKEN COST, AVG USAGE RATE, TOOLS & SITES — the actual bill first,
   the work done, the API-rate hypothetical it would have cost, how hard the
   plan is being driven, the machine's inventory last. SPEND now carries only
   real money: the saving-vs-API-rates line moved off it (the comparison lives
   on TOKEN COST and in the Cost view), and in its place the card says whether
-  extra usage is in play - `no extra usage` while the metering windows have
-  never pegged, `extra usage likely` once one has. AVG USAGE RATE is new:
-  the mean peak of the 5-hour metering windows, the number that predicts a
-  cap hit before it bills. TOOLS and AI SITES folded into one card.
+  extra usage is in play — `no extra usage` while the metering windows have
+  never pegged, `▲ extra usage likely` once one has. AVG USAGE RATE is new:
+  the mean peak of the 5-hour metering windows, the number that predicts a cap
+  hit before it bills. TOOLS and AI SITES folded into one card.
 - **The SPEND card says what its dollars are.** Its last qualifier now reads
-  `at API list rates` instead of `all models priced` - the figure is list-rate
-  arithmetic, not a bill, and the old line said nothing the absence of `>=`
-  did not already say. With unpriced models the `N model(s) unpriced`
+  `at API list rates` instead of `all models priced` — the figure is list-rate
+  arithmetic, not a bill, and the old line said nothing the absence of `≥`
+  did not already say. With unpriced models the `▲ N model(s) unpriced`
   caveat still takes the line.
 
 ### Added
 
-- **The Usage view can show the plan's own meter.** `m` swaps the
-  token table for Claude's 5-hour metering windows - per day, how many were
-  started and the peak utilisation each reached, with the deepest window
-  drawn as a bar against the cap itself. Reconstructed from the samples
-  Claude Desktop already keeps in `plan-usage-history.json`; timestamps and
-  percentages are all that is read, the org id in the file is never kept, and
-  a machine without the file gets the absence stated rather than a zero. The
-  window count is a floor - samples exist only while Claude Desktop runs.
+- **The Usage view can show the plan's own meter.** `m` swaps the token table
+  for Claude's 5-hour metering windows — per day, how many were started and
+  the peak utilisation each reached, with the deepest window drawn as a bar
+  against the cap itself. Reconstructed from the samples Claude Desktop
+  already keeps in `plan-usage-history.json`; timestamps and percentages are
+  all that is read, the org id in the file is never kept, and a machine
+  without the file gets the absence stated rather than a zero. The window
+  count is a floor — samples exist only while Claude Desktop runs.
 - **`[usage.repo_aliases]` folds two names for one project into one row.** A
   checkout with an `origin` remote reports `owner/name`; a copy of the same
   code with no remote reports its folder basename; and surface never guesses
   the two are the same project, because folding spend together on a string
-  resemblance is misattribution. The operator declares it instead -
-  `"HAI Neo" = "holistic-ai/hai-neo"` - and the grouping applies when the
+  resemblance is misattribution. The operator declares it instead —
+  `"HAI Neo" = "holistic-ai/hai-neo"` — and the grouping applies when the
   ledger is read, never to what is stored, so history regroups retroactively
   and a wrong alias is one edit away from undone. Project totals, daily rows
   and the session breakdown all follow the alias.
 - **Tools name the plan they are signed into, and what the seat costs.** The
   Tools view gains PLAN and `$/MO` columns, and the SPEND card and Cost view
-  price the same figure: Claude Code's `~/.claude.json` names the seat -
-  priced by its rate-limit tier when that names a known capacity - and
-  Codex's `~/.codex/auth.json` token payload names `chatgpt_plan_type`. The
-  account file beats the plan its transcripts name, and
-  `[cost.subscriptions]` beats both. Only the plan's name is read from those
-  files, never the credentials beside it, and nothing is fetched. `--json`
-  carries it as `tools.list[].plan` with its source. The built-in table
-  prices ChatGPT's `team` plan at $25 after OpenAI's April 2026 repricing of
-  Business, splitting it from Claude's `team_tier_1` at $30.
+  price the same figure: Claude Code's `~/.claude.json` names the seat —
+  priced by its rate-limit tier when that names a known capacity, because a
+  Team premium seat reads the same seat slug as a standard one and pricing by
+  it under-reported a real premium seat by 70% — and Codex's
+  `~/.codex/auth.json` token payload names `chatgpt_plan_type`. The account
+  file — what the tool is on *now* — beats the plan its transcripts name, and
+  `[cost.subscriptions]` beats both; the `≈` on an estimated figure marks
+  exactly what one config line makes exact. Only the plan's name is read from
+  those files, never the credentials beside it, and nothing is fetched.
+  `--json` carries it as `tools.list[].plan` with its source. The built-in
+  table prices ChatGPT's `team` plan at $25 after OpenAI's April 2026
+  repricing of Business, splitting it from Claude's `team_tier_1` at $30 —
+  the table carries monthly-billing list rates, and annual billing being
+  lower is one more reason every figure from it is marked an estimate.
+
 - **A SPEND card that prices seats, and a TOKEN COST card that prices tokens.**
-  The Overview's old SPEND figure - the window's tokens at API list rates - now
+  The Overview's old SPEND figure — the window's tokens at API list rates — now
   sits under the name it deserved, **TOKEN COST**. The **SPEND** card answers
   the other question: what the seats behind that usage actually cost per month.
   Figures come from `[cost.subscriptions]`, or failing that from the plan a
-  tool's own transcripts name, priced at that plan's list rate and marked an
-  estimate. A tool with usage but no figure makes the total a floor; knowing
-  nothing, the card shows a dash and says how to configure it rather than
-  guessing. Detected plans persist in the ledger (now version 5, so the first
-  scan after upgrading re-reads transcripts once).
+  tool's own transcripts name (Codex writes `rate_limits.plan_type` beside its
+  token counts), priced at that plan's list rate and marked `≈` an estimate. A
+  tool with usage but no figure makes the total `≥` a floor; knowing nothing,
+  the card shows `–` and says how to configure it rather than guessing. The
+  Cost view's subscription table picks up detected plans the same way, still
+  suffixed `est`. Detected plans persist in the ledger (now version 5, so the
+  first scan after upgrading re-reads transcripts once).
 - **The Projects view names the tools behind each repository.** Each project
   row ends in a `TOOLS` column listing the tools whose sessions ran there,
-  behind the same series texture the usage chart keys that tool by. It
-  replaces the share bar, which repeated TOKENS as decoration.
-
-### Fixed
-
-- **A missing cache rate no longer bills cache tokens at a silent zero.**
-  (#16) Cache creation now falls back to the input rate and cache reads to
-  zero, both of which understate, and the result is a **floor**: `>=` on the
-  figure, `floor` as the `--json` cost state, and counted into every total's
-  floor marker. A rate listed as `0.0` still prices as zero exactly - only an
-  *absent* rate floors. Cache-only table entries also survive parsing.
-- **Codex usage is priced again on current Codex versions.** Newer Codex no
-  longer names the model in `session_meta`; it lives on each turn's
-  `turn_context` record and can change mid-session. The scan now follows those
-  records, and the session-header read is no longer cut off at a fixed 64 KiB.
+  behind the same series texture the usage chart keys that tool by — so two
+  rows like `HAI Neo` and `owner/hai-neo` finally read as "the Codex checkout"
+  and "the Claude Code one". It replaces the share bar, which repeated TOKENS
+  as decoration.
 
 ## [0.1.0] - 2026-07-28
 

@@ -37,10 +37,7 @@
     alt="The surface dashboard running in a terminal: four cards reading $1,627 spend, 1.4B tokens, 9 tools and 12 AI sites; a stacked spend-per-day chart; and three ranked panels breaking the total down by model, by tool and by repository.">
 </p>
 
-A single binary that scans your own machine and tells you four things: which AI
-tools are installed, which AI sites you use, how many tokens those tools have
-spent, and what that came to in dollars. No account, no daemon, no telemetry — it
-reads files that are already on your disk and shows you what is in them.
+A single binary that scans your own machine and tells you four things: which AI tools are installed, which AI sites you use, how many tokens those tools have spent, and what that came to in dollars. No account, no daemon, no telemetry. It reads files that are already on your disk and shows you what is in them.
 
 ## Install
 
