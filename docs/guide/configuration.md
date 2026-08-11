@@ -92,6 +92,26 @@ a typo, and refusing to run over a typo is worse than running over a sane value.
 An unknown *key*, on the other hand, is an error at startup: a misspelled setting
 that silently does nothing is the worse failure.
 
+## `[usage.repo_aliases]`
+
+The same project legitimately earns two rows in the Projects view: a checkout
+with an `origin` remote reports `owner/name`, while a copy of the same code
+with no remote — a scratch workspace, an agent's own working folder — reports
+its directory basename. surface never guesses that two names are one project,
+because folding someone's spend together on a string resemblance is
+misattribution. Declare it instead:
+
+```toml
+[usage.repo_aliases]
+"HAI Neo" = "holistic-ai/hai-neo"
+```
+
+Keys are rows exactly as the Projects view shows them; values are the row to
+fold them into. The grouping is applied when the ledger is *read*, never to
+what is stored — like prices — so an alias added today regroups the whole
+window retroactively, and a wrong one is one edit away from undone. Aliases do
+not chase: an alias pointing at another alias folds one hop only.
+
 ## `[cost]`
 
 surface prices tokens at API list rates. If you pay a flat subscription instead,

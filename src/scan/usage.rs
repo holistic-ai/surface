@@ -142,6 +142,9 @@ pub fn scan(config: &UsageConfig, state_dir: &Path) -> Usage {
     // still matters: a ledger inherited from a tool that did collect them has to
     // drop them rather than keep showing stale ones.
     ledger.sync_title_policy(false);
+    // Read-time state, not persisted: the stored keys stay raw, so an edited
+    // alias regroups the whole window on the next run.
+    ledger.set_aliases(config.repo_aliases.clone());
 
     let mut usage = Usage {
         window_days: config.window_days,

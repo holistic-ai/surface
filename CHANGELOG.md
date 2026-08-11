@@ -35,16 +35,44 @@ publishing empty notes.
   it, instead of filing entire sessions under `unknown`/`▲ unpriced`. The
   session-header read is also no longer cut off at a fixed 64 KiB, which
   truncated exactly the line that names the model.
+
 ### Changed
 
+- **The Overview cards say what kind of money they are, in order.** SPEND,
+  TOKENS, TOKEN COST, AVG USAGE RATE, TOOLS & SITES — the actual bill first,
+  the work done, the API-rate hypothetical it would have cost, how hard the
+  plan is being driven, the machine's inventory last. SPEND now carries only
+  real money: the saving-vs-API-rates line moved off it (the comparison lives
+  on TOKEN COST and in the Cost view), and in its place the card says whether
+  extra usage is in play — `no extra usage` while the metering windows have
+  never pegged, `▲ extra usage likely` once one has. AVG USAGE RATE is new:
+  the mean peak of the 5-hour metering windows, the number that predicts a cap
+  hit before it bills. TOOLS and AI SITES folded into one card.
 - **The SPEND card says what its dollars are.** Its last qualifier now reads
   `at API list rates` instead of `all models priced` — the figure is list-rate
   arithmetic, not a bill, and the old line said nothing the absence of `≥`
   did not already say. With unpriced models the `▲ N model(s) unpriced`
   caveat still takes the line.
-  
+
 ### Added
 
+- **The Usage view can show the plan's own meter.** `m` swaps the token table
+  for Claude's 5-hour metering windows — per day, how many were started and
+  the peak utilisation each reached, with the deepest window drawn as a bar
+  against the cap itself. Reconstructed from the samples Claude Desktop
+  already keeps in `plan-usage-history.json`; timestamps and percentages are
+  all that is read, the org id in the file is never kept, and a machine
+  without the file gets the absence stated rather than a zero. The window
+  count is a floor — samples exist only while Claude Desktop runs.
+- **`[usage.repo_aliases]` folds two names for one project into one row.** A
+  checkout with an `origin` remote reports `owner/name`; a copy of the same
+  code with no remote reports its folder basename; and surface never guesses
+  the two are the same project, because folding spend together on a string
+  resemblance is misattribution. The operator declares it instead —
+  `"HAI Neo" = "holistic-ai/hai-neo"` — and the grouping applies when the
+  ledger is read, never to what is stored, so history regroups retroactively
+  and a wrong alias is one edit away from undone. Project totals, daily rows
+  and the session breakdown all follow the alias.
 - **Tools name the plan they are signed into, and what the seat costs.** The
   Tools view gains PLAN and `$/MO` columns, and the SPEND card and Cost view
   price the same figure: Claude Code's `~/.claude.json` names the seat —

@@ -459,6 +459,10 @@ fn draw_rankings(frame: &mut Frame, area: Rect, app: &App) {
     draw_ranking(frame, columns[2], "by repository", &by_repo, app);
 }
 
+/// Money the reader pays, work the reader did, what that work would have
+/// cost, how hard the plan is being driven, and what is installed — in that
+/// order, left to right: the actual bill first, the hypothetical after the
+/// facts it is derived from, the machine's inventory last.
 fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
     let cards = Layout::default()
         .direction(Direction::Horizontal)
@@ -467,13 +471,27 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
 
     draw_spend_card(frame, cards[0], app);
 
+    card(
+        frame,
+        cards[1],
+        "tokens",
+        &theme::compact(app.total_tokens()),
+        &[
+            format!("{} messages", thousands(app.total_messages())),
+            // Distinct models, not the `(tool, model)` pairs `models()` lists: one
+            // model run by two tools was counted twice here.
+            format!("{} models", app.distinct_models()),
+        ],
+        theme::TEXT,
+    );
+
     let unpriced = app.unpriced_models();
     // A total with nothing to compare it against is the least useful shape a cost
     // figure can take, so the window line carries a projected rate and the line
     // under it says which way the spend is going. Both are dropped rather than
     // faked when they cannot be computed — a zero-day window, or too few active
     // days for a half-against-half comparison to mean anything.
-    let mut spend_detail = vec![match app.daily_rate() {
+    let mut cost_detail = vec![match app.daily_rate() {
         Some(rate) => format!(
             "over {} days \u{b7} \u{2248} {}/day",
             app.scan.usage.window_days,
@@ -491,17 +509,17 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
         } else {
             "\u{25bc}"
         };
-        spend_detail.push(format!(
+        cost_detail.push(format!(
             "{arrow} {:.0}% vs prior {} days",
             trend.change.abs() * 100.0,
             trend.days
         ));
     }
     // The figure is list-rate arithmetic, not a bill, and the card must say so:
-    // "SPEND" alone reads as money out the door, which for a subscription user
-    // it is not. With unpriced models the caveat line matters more — and `≥` on
-    // the figure plus the amber are already carrying "estimate".
-    spend_detail.push(if unpriced > 0 {
+    // "TOKEN COST" is the hypothetical beside SPEND's actual. With unpriced
+    // models the caveat line matters more — and `≥` on the figure plus the
+    // amber are already carrying "estimate".
+    cost_detail.push(if unpriced > 0 {
         format!("\u{25b2} {unpriced} model(s) unpriced")
     } else {
         "at API list rates".to_string()
@@ -509,10 +527,10 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
 
     card(
         frame,
-        cards[1],
+        cards[2],
         "token cost",
         &format_usd(app.total_usd()),
-        &spend_detail,
+        &cost_detail,
         if unpriced > 0 {
             theme::WARN
         } else {
@@ -520,67 +538,41 @@ fn draw_cards(frame: &mut Frame, area: Rect, app: &App) {
         },
     );
 
-    card(
-        frame,
-        cards[2],
-        "tokens",
-        &theme::compact(app.total_tokens()),
-        &[
-            format!("{} messages", thousands(app.total_messages())),
-            // Distinct models, not the `(tool, model)` pairs `models()` lists: one
-            // model run by two tools was counted twice here.
-            format!("{} models", app.distinct_models()),
-        ],
-        theme::TEXT,
-    );
-
-    let s = &app.scan.tools_summary;
-    card(
-        frame,
-        cards[3],
-        "tools",
-        &s.detected.to_string(),
-        &[
-            if s.autonomous > 0 {
-                format!("\u{25b2} {} autonomous", s.autonomous)
-            } else {
-                "none autonomous".to_string()
-            },
-            format!("{} vendors", s.vendors.len()),
-        ],
-        if s.autonomous > 0 {
-            theme::WARN
-        } else {
-            theme::TEXT
-        },
-    );
-
-    draw_sites_card(frame, cards[4], app);
+    draw_meter_card(frame, cards[3], app);
+    draw_tools_sites_card(frame, cards[4], app);
 }
 
-/// What the seats actually cost, as far as that can be known — against the
-/// token arithmetic on the TOKEN COST card beside it.
+/// What is actually paid: seats, and whether overflow billing is in play.
 ///
-/// Three states, in the house grammar: a configured figure is plain, a
-/// detected plan's list price is `≈` an estimate, a tool with usage but no
-/// figure makes the total `≥` a floor — and knowing nothing shows `–` and
-/// says how to fix it, never a guess.
+/// Only real money lives here — the API-rate hypothetical has its own card,
+/// TOKEN COST, and never leaks into this one. Three states, in the house
+/// grammar: a configured figure is plain, a detected plan's list price is `≈`
+/// an estimate, a tool with usage but no figure makes the total `≥` a floor —
+/// and knowing nothing shows `–` and says how to fix it, never a guess.
 fn draw_spend_card(frame: &mut Frame, area: Rect, app: &App) {
+    // Extra usage bills only after a metering window pegs at 100%, so the
+    // meter is the honest witness: never pegged means none, a peg means it
+    // is likely, and no meter history means nothing is claimed either way.
+    let extra_usage = |metering: &crate::scan::meter::Metering| -> Option<String> {
+        if !metering.found || metering.windows.is_empty() {
+            return None;
+        }
+        Some(if metering.hottest() >= 100 {
+            "\u{25b2} extra usage likely".to_string()
+        } else {
+            "no extra usage".to_string()
+        })
+    };
+
     let Some(estimate) = app.spend_estimate() else {
         // Card lines have ~24 columns on a 150-column terminal; every string
         // here is written to that width rather than truncated into noise.
-        card(
-            frame,
-            area,
-            "spend",
-            "\u{2013}",
-            &[
-                "no seat price known".to_string(),
-                "set [cost.subscriptions]".to_string(),
-                "see token cost".to_string(),
-            ],
-            theme::DIM,
-        );
+        let mut detail = vec![
+            "no seat price known".to_string(),
+            "set [cost.subscriptions]".to_string(),
+        ];
+        detail.extend(extra_usage(&app.scan.metering));
+        card(frame, area, "spend", "\u{2013}", &detail, theme::DIM);
         return;
     };
 
@@ -600,14 +592,7 @@ fn draw_spend_card(frame: &mut Frame, area: Rect, app: &App) {
         (0, d) => format!("{d} plan(s) detected"),
         (c, d) => format!("{c} configured \u{b7} {d} detected"),
     }];
-    // The comparison the Cost view makes per tool, summed: the same tools'
-    // window tokens at API rates. Signed like `SubscriptionRow::saving`.
-    let saving = estimate.api_equivalent - estimate.monthly_usd;
-    detail.push(if saving >= 0.0 {
-        format!("{} under API rates", format_usd(saving))
-    } else {
-        format!("{} over API rates", format_usd(-saving))
-    });
+    detail.extend(extra_usage(&app.scan.metering));
     if estimate.unpriced_tools > 0 {
         detail.push(format!(
             "\u{25b2} {} tool(s) unpriced",
@@ -615,13 +600,14 @@ fn draw_spend_card(frame: &mut Frame, area: Rect, app: &App) {
         ));
     }
 
+    let pegged = app.scan.metering.found && app.scan.metering.hottest() >= 100;
     card(
         frame,
         area,
         "spend",
         &value,
         &detail,
-        if estimate.unpriced_tools > 0 {
+        if estimate.unpriced_tools > 0 || pegged {
             theme::WARN
         } else {
             theme::MONEY
@@ -629,16 +615,68 @@ fn draw_spend_card(frame: &mut Frame, area: Rect, app: &App) {
     );
 }
 
+/// How hard the plan itself is being driven: the average peak the 5-hour
+/// metering windows reach. The number that predicts a future cap hit — and
+/// the overflow billing behind it — which no token count can.
+fn draw_meter_card(frame: &mut Frame, area: Rect, app: &App) {
+    let metering = &app.scan.metering;
+    if !metering.found || metering.windows.is_empty() {
+        card(
+            frame,
+            area,
+            "avg usage rate",
+            "\u{2013}",
+            &[
+                "no metering history".to_string(),
+                "needs Claude Desktop".to_string(),
+            ],
+            theme::DIM,
+        );
+        return;
+    }
+
+    let hottest = metering.hottest();
+    card(
+        frame,
+        area,
+        "avg usage rate",
+        &format!("{}%", metering.average_peak()),
+        &[
+            format!("{} 5-hour window(s)", metering.windows.len()),
+            if hottest >= 90 {
+                format!("\u{25b2} hottest {hottest}%")
+            } else {
+                format!("hottest {hottest}%")
+            },
+            // The per-day breakdown lives one keypress away.
+            "[m] on Usage for days".to_string(),
+        ],
+        if hottest >= 90 {
+            theme::WARN
+        } else {
+            theme::TEXT
+        },
+    );
+}
+
+/// The machine's inventory, folded into one card: what is installed, and
+/// where this machine goes. The Tools and Sites views carry the detail.
 #[cfg(feature = "sqlite")]
-fn draw_sites_card(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_tools_sites_card(frame: &mut Frame, area: Rect, app: &App) {
+    let s = &app.scan.tools_summary;
     let sites = &app.scan.sites;
     let blind = sites.blind_spots.len();
     card(
         frame,
         area,
-        "AI sites",
-        &sites.sites.len().to_string(),
+        "tools & sites",
+        &format!("{} \u{b7} {}", s.detected, sites.sites.len()),
         &[
+            if s.autonomous > 0 {
+                format!("\u{25b2} {} autonomous", s.autonomous)
+            } else {
+                "none autonomous".to_string()
+            },
             format!("{} visits", thousands(sites.total_visits())),
             if blind > 0 {
                 format!("\u{25b2} {blind} browser(s) unreadable")
@@ -646,22 +684,36 @@ fn draw_sites_card(frame: &mut Frame, area: Rect, app: &App) {
                 format!("{} profile(s) read", sites.profiles_scanned)
             },
         ],
-        if blind > 0 { theme::WARN } else { theme::TEXT },
+        if s.autonomous > 0 || blind > 0 {
+            theme::WARN
+        } else {
+            theme::TEXT
+        },
     );
 }
 
 #[cfg(not(feature = "sqlite"))]
-fn draw_sites_card(frame: &mut Frame, area: Rect, _app: &App) {
+fn draw_tools_sites_card(frame: &mut Frame, area: Rect, app: &App) {
+    let s = &app.scan.tools_summary;
     card(
         frame,
         area,
-        "AI sites",
-        "\u{2013}",
+        "tools & sites",
+        &s.detected.to_string(),
         &[
-            "not compiled in".to_string(),
+            if s.autonomous > 0 {
+                format!("\u{25b2} {} autonomous", s.autonomous)
+            } else {
+                "none autonomous".to_string()
+            },
+            "sites: not compiled in".to_string(),
             "needs the sqlite feature".to_string(),
         ],
-        theme::DIM,
+        if s.autonomous > 0 {
+            theme::WARN
+        } else {
+            theme::DIM
+        },
     );
 }
 
@@ -885,6 +937,110 @@ fn draw_tools(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
     row_hits(area, &table_state, 1)
 }
 
+/// The plan's own meter: 5-hour windows per day and the peak each reached.
+///
+/// This is the number the plan is actually enforced in — the token table says
+/// how much work was done, this says how close that work came to the cap. A
+/// window at 100% that keeps going is when extra usage starts billing, so the
+/// peaks here are the early warning the token counts cannot give.
+///
+/// Claude only, from Claude Desktop's own samples; a machine without them
+/// gets the absence stated, never a zero that would read as idleness. The
+/// count is a floor — samples exist only while the app runs.
+fn draw_metering(frame: &mut Frame, area: Rect, app: &App) {
+    let metering = &app.scan.metering;
+    if !metering.found {
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from(Span::styled(
+                    "No metering history on this machine.",
+                    Style::default().fg(theme::TEXT),
+                )),
+                Line::from(Span::styled(
+                    "Claude Desktop samples its plan meter into plan-usage-history.json;",
+                    Style::default().fg(theme::DIM),
+                )),
+                Line::from(Span::styled(
+                    "without it there is nothing to reconstruct. [m] returns to tokens.",
+                    Style::default().fg(theme::DIM),
+                )),
+            ])
+            .block(panel("metering windows \u{b7} [m] tokens")),
+            area,
+        );
+        return;
+    }
+
+    let days = app.metering_days();
+    let hottest = metering.hottest();
+
+    let rows: Vec<Row> = days
+        .iter()
+        .map(|d| {
+            // The bar is the day's deepest window against the cap itself —
+            // not against the hottest day — so half a bar always means half
+            // way to the meter, on every machine.
+            let bar = ((d.max_peak as f64 / 100.0) * 24.0).round() as usize;
+            let hot = d.max_peak >= 90;
+            let mark = if hot {
+                Span::styled("\u{25b2} ", Style::default().fg(theme::WARN))
+            } else {
+                Span::raw("")
+            };
+            Row::new(vec![
+                Cell::from(d.day.clone()),
+                Cell::from(thousands(d.windows as u64)),
+                Cell::from(format!("{}%", d.avg_peak)),
+                Cell::from(Line::from(vec![
+                    mark,
+                    Span::styled(
+                        format!("{}%", d.max_peak),
+                        Style::default().fg(if hot { theme::WARN } else { theme::TEXT }),
+                    ),
+                ])),
+                Cell::from(Line::from(Span::styled(
+                    "\u{2588}".repeat(bar),
+                    Style::default().fg(if hot { theme::WARN } else { theme::SEQUENTIAL }),
+                ))),
+            ])
+        })
+        .collect();
+
+    let span = match (&metering.from, &metering.to) {
+        (Some(from), Some(to)) if from != to => format!("{from} \u{2192} {to}"),
+        (Some(from), _) => from.clone(),
+        _ => String::new(),
+    };
+    let mut title = format!(
+        "claude 5-hour windows \u{b7} {} over {span} \u{b7} avg peak {}%",
+        metering.windows.len(),
+        metering.average_peak(),
+    );
+    if hottest >= 90 {
+        title.push_str(&format!(" \u{b7} \u{25b2} hottest {hottest}%"));
+    } else {
+        title.push_str(&format!(" \u{b7} hottest {hottest}%"));
+    }
+    title.push_str(" \u{b7} [m] tokens");
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(12),
+            Constraint::Length(9),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Min(10),
+        ],
+    )
+    .header(header(&[
+        "DAY", "WINDOWS", "AVG PEAK", "MAX PEAK", "VS CAP",
+    ]))
+    .block(panel(&title));
+
+    frame.render_widget(table, area);
+}
+
 // ------------------------------------------------------------------- sites
 
 #[cfg(feature = "sqlite")]
@@ -998,6 +1154,11 @@ fn draw_sites(frame: &mut Frame, area: Rect, _app: &App) -> Option<Rows> {
 // ------------------------------------------------------------------- usage
 
 fn draw_usage(frame: &mut Frame, area: Rect, app: &App) -> Option<Rows> {
+    if app.metering_view {
+        draw_metering(frame, area, app);
+        return None;
+    }
+
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(45), Constraint::Min(6)])
@@ -1948,6 +2109,7 @@ fn draw_help(frame: &mut Frame, area: Rect) {
         Line::from("  enter           switch pane, where a view has two"),
         Line::from("  d               token detail under each row"),
         Line::from("  u               Overview chart: spend or tokens"),
+        Line::from("  m               Usage view: tokens or metering windows"),
         Line::from("  [ / \u{5d}           move the chart cursor a bucket"),
         Line::from("  backspace       drop the chart cursor"),
         Line::from("  click           a view, a table row, or a pane"),
@@ -2074,6 +2236,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2152,6 +2315,7 @@ mod tests {
             sites: Default::default(),
             usage: Default::default(),
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2284,6 +2448,39 @@ mod tests {
         assert!(!out.contains("$0.00"));
     }
 
+    /// The TOKEN COST card names what its dollars are: list-rate arithmetic
+    /// when every model is priced, the unpriced caveat when one is not — one
+    /// line, never both. Renamed with the card, and rendered at 150: five
+    /// cards narrow each one, and the qualifier must survive whole.
+    #[test]
+    fn the_token_cost_card_qualifies_its_dollars() {
+        // Cache rates included: the fixture's tokens carry cache reads, and a
+        // table that omits their rate is not "all priced" — it is a floor.
+        let all_priced = crate::pricing::Prices::parse(
+            r#"{"claude-opus-5": {"input_cost_per_token": 0.000005,
+                                  "output_cost_per_token": 0.000025,
+                                  "cache_read_input_token_cost": 5e-7,
+                                  "cache_creation_input_token_cost": 6e-6},
+                "gpt-5.6-sol": {"input_cost_per_token": 0.000001,
+                                "output_cost_per_token": 0.000004,
+                                "cache_read_input_token_cost": 1e-7,
+                                "cache_creation_input_token_cost": 2e-6}}"#,
+        )
+        .expect("a two-model table parses");
+        let mut app = populated_with(all_priced);
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("at API list rates"), "the qualifier line");
+        assert!(!out.contains("unpriced"), "nothing is unpriced");
+
+        // One of the fixture's two models is missing from this table.
+        let mut app = populated_with(prices_for_a_model());
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("unpriced"), "the caveat takes the line");
+        assert!(!out.contains("at API list rates"), "one line, never both");
+    }
+
     /// The SPEND card prices seats, not tokens: nothing known shows `–` and
     /// says how to fix it, a detected plan is `≈` an estimate at list price,
     /// and a tool without any figure makes the total `≥` a floor.
@@ -2324,6 +2521,7 @@ mod tests {
                     source: crate::scan::plans::PlanSource::Transcript,
                 },
             )]),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2341,6 +2539,10 @@ mod tests {
             "ChatGPT Business's monthly list price, flagged an estimate"
         );
         assert!(out.contains("1 plan(s) detected"));
+        assert!(
+            !out.contains("API rates"),
+            "the hypothetical never leaks onto SPEND"
+        );
     }
 
     #[test]
@@ -2371,6 +2573,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2394,6 +2597,10 @@ mod tests {
             "configured is not an estimate"
         );
         assert!(out.contains("1 tool(s) unpriced"));
+        assert!(
+            !out.contains("API rates"),
+            "the hypothetical never leaks onto SPEND"
+        );
     }
 
     /// The Tools view names the plan each tool is signed into, as the raw
@@ -2421,6 +2628,7 @@ mod tests {
                     source: crate::scan::plans::PlanSource::Account,
                 },
             )]),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2461,6 +2669,7 @@ mod tests {
             sites: Default::default(),
             usage: Default::default(),
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2482,37 +2691,228 @@ mod tests {
         );
     }
 
-    /// The TOKEN COST card names what its dollars are: list-rate arithmetic
-    /// when every model is priced, the unpriced caveat when one is not — one
-    /// line, never both. Renamed with the card, and rendered at 150: five
-    /// cards narrow each one, and the qualifier must survive whole.
+    /// The same project reached two ways — a remote-less scratch folder and
+    /// the real checkout — declared one project by `[usage.repo_aliases]`:
+    /// one row, both names' tokens, and the session breakdown intact.
     #[test]
-    fn the_token_cost_card_qualifies_its_dollars() {
-        // Cache rates included: the fixture's tokens carry cache reads, and a
-        // table that omits their rate is not "all priced" — it is a floor.
-        let all_priced = crate::pricing::Prices::parse(
-            r#"{"claude-opus-5": {"input_cost_per_token": 0.000005,
-                                  "output_cost_per_token": 0.000025,
-                                  "cache_read_input_token_cost": 5e-7,
-                                  "cache_creation_input_token_cost": 6e-6},
-                "gpt-5.6-sol": {"input_cost_per_token": 0.000001,
-                                "output_cost_per_token": 0.000004,
-                                "cache_read_input_token_cost": 1e-7,
-                                "cache_creation_input_token_cost": 2e-6}}"#,
-        )
-        .expect("a two-model table parses");
-        let mut app = populated_with(all_priced);
-        app.set_tab(Tab::Overview);
-        let out = rendered(&app, 150, 40);
-        assert!(out.contains("at API list rates"), "the qualifier line");
-        assert!(!out.contains("unpriced"), "nothing is unpriced");
+    fn an_aliased_project_is_one_row_and_keeps_both_names_sessions() {
+        let mut ledger = Ledger {
+            titles_enabled: true,
+            ..Default::default()
+        };
+        let t = tokens(1_000, 2_000);
+        ledger.add("2026-07-26", "claude_code", "claude-opus-5", &t);
+        ledger.add_project("2026-07-26", "HAI Neo", "claude-opus-5", &t);
+        ledger.add_session("2026-07-26", "a", "claude-opus-5", &t);
+        ledger.observe_session("a", "claude_code", "HAI Neo", Some("scratch run"));
+        ledger.add("2026-07-27", "claude_code", "claude-opus-5", &t);
+        ledger.add_project("2026-07-27", "holistic-ai/hai-neo", "claude-opus-5", &t);
+        ledger.add_session("2026-07-27", "b", "claude-opus-5", &t);
+        ledger.observe_session(
+            "b",
+            "claude_code",
+            "holistic-ai/hai-neo",
+            Some("checkout run"),
+        );
+        ledger.set_aliases(std::collections::BTreeMap::from([(
+            "HAI Neo".to_string(),
+            "holistic-ai/hai-neo".to_string(),
+        )]));
 
-        // One of the fixture's two models is missing from this table.
-        let mut app = populated_with(prices_for_a_model());
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            plans: Default::default(),
+            metering: Default::default(),
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            CostConfig::default(),
+        );
+        app.set_tab(Tab::Projects);
+
+        assert_eq!(app.repos().len(), 1, "one project, not two rows");
+        let row = &app.repos()[0];
+        assert_eq!(row.repo, "holistic-ai/hai-neo");
+        assert_eq!(row.tokens, 2 * t.total(), "both names' tokens folded in");
+        assert_eq!(
+            app.sessions_in("holistic-ai/hai-neo").len(),
+            2,
+            "sessions recorded under either name attach to the one row"
+        );
+    }
+
+    /// The SPEND card's extra-usage line follows the meter: quiet windows say
+    /// so, a pegged one flips the warning, and no history claims nothing.
+    #[test]
+    fn the_spend_card_reports_extra_usage_from_the_meter() {
+        let mut ledger = Ledger::default();
+        ledger.add("2026-07-26", "codex", "gpt-5.6", &tokens(1_000, 2_000));
+
+        let scan = Scan {
+            tools_summary: Default::default(),
+            tools: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            sites: Default::default(),
+            usage: crate::scan::usage::Usage {
+                ledger,
+                window_days: 30,
+                ..Default::default()
+            },
+            plans: Default::default(),
+            metering: crate::scan::meter::Metering {
+                windows: vec![crate::scan::meter::MeterWindow {
+                    day: "2026-07-26".to_string(),
+                    peak: 45,
+                }],
+                from: Some("2026-07-26".to_string()),
+                to: Some("2026-07-26".to_string()),
+                found: true,
+            },
+            failed: Vec::new(),
+            demo: false,
+        };
+        let mut cost = CostConfig::default();
+        cost.subscriptions.insert("codex".into(), 25.0);
+        let mut app = App::new(
+            scan,
+            Timings::default(),
+            crate::pricing::Prices::default(),
+            cost,
+        );
+        app.set_tab(Tab::Overview);
+
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("no extra usage"), "quiet windows say so");
+
+        app.scan
+            .metering
+            .windows
+            .push(crate::scan::meter::MeterWindow {
+                day: "2026-07-27".to_string(),
+                peak: 100,
+            });
+        let out = rendered(&app, 150, 40);
+        assert!(
+            out.contains("\u{25b2} extra usage likely"),
+            "a pegged window flips the warning"
+        );
+    }
+
+    /// The AVG USAGE RATE card averages the window peaks, and a machine
+    /// without metering history shows the absence rather than a zero.
+    #[test]
+    fn the_avg_usage_rate_card_averages_window_peaks() {
+        let mut app = populated();
         app.set_tab(Tab::Overview);
         let out = rendered(&app, 150, 40);
-        assert!(out.contains("unpriced"), "the caveat takes the line");
-        assert!(!out.contains("at API list rates"), "one line, never both");
+        assert!(out.contains("AVG USAGE RATE"), "the card exists");
+        assert!(out.contains("no metering history"), "absence, not zero");
+
+        app.scan.metering = crate::scan::meter::Metering {
+            windows: vec![
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-26".to_string(),
+                    peak: 30,
+                },
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-27".to_string(),
+                    peak: 50,
+                },
+            ],
+            from: Some("2026-07-26".to_string()),
+            to: Some("2026-07-27".to_string()),
+            found: true,
+        };
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("40%"), "(30 + 50) / 2");
+        assert!(out.contains("hottest 50%"));
+        assert!(out.contains("2 5-hour window(s)"));
+    }
+
+    /// Tools and sites share one card, in the fifth slot.
+    #[test]
+    fn tools_and_sites_share_one_card() {
+        let mut app = populated();
+        app.set_tab(Tab::Overview);
+        let out = rendered(&app, 150, 40);
+        assert!(out.contains("TOOLS & SITES"), "the folded card");
+        assert!(!out.contains("AI SITES"), "the separate card is gone");
+    }
+
+    /// `m` swaps the Usage view for the plan's own meter and back, shows the
+    /// per-day peaks, and does nothing on any other view.
+    #[test]
+    fn the_usage_view_toggles_to_metering_windows() {
+        let mut app = populated();
+        app.set_tab(Tab::Overview);
+        app.toggle_metering();
+        assert!(!app.metering_view, "a no-op off the Usage view");
+
+        app.set_tab(Tab::Usage);
+        app.scan.metering = crate::scan::meter::Metering {
+            windows: vec![
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-27".to_string(),
+                    peak: 75,
+                },
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-27".to_string(),
+                    peak: 43,
+                },
+                crate::scan::meter::MeterWindow {
+                    day: "2026-07-28".to_string(),
+                    peak: 95,
+                },
+            ],
+            from: Some("2026-07-27".to_string()),
+            to: Some("2026-07-28".to_string()),
+            found: true,
+        };
+        app.toggle_metering();
+        assert!(app.metering_view);
+        assert_eq!(app.row_count(), 0, "the meter has nothing to select");
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("claude 5-hour windows"), "the panel title");
+        assert!(out.contains("MAX PEAK"), "the table header");
+        assert!(out.contains("2026-07-27"));
+        assert!(out.contains("59%"), "avg of 75 and 43 on the hot day");
+        assert!(
+            out.contains("\u{25b2} 95%"),
+            "90%+ is flagged, not just shown"
+        );
+        assert!(out.contains("hottest 95%"), "the title carries the summary");
+
+        app.toggle_metering();
+        assert!(!app.metering_view);
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("tokens by model"), "back to the token chart");
+    }
+
+    /// A machine without the history file states the absence — never a zero
+    /// that would read as an idle plan.
+    #[test]
+    fn missing_metering_history_is_an_absence_not_a_zero() {
+        let mut app = populated();
+        app.set_tab(Tab::Usage);
+        assert!(!app.scan.metering.found, "the fixture has no history");
+        app.toggle_metering();
+
+        let out = rendered(&app, 150, 30);
+        assert!(out.contains("No metering history on this machine."));
+        assert!(!out.contains("MAX PEAK"), "no empty table pretending");
     }
 
     #[test]
@@ -2563,6 +2963,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2609,6 +3010,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -2661,6 +3063,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3113,6 +3516,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3391,6 +3795,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3470,6 +3875,7 @@ mod tests {
                 ..Default::default()
             },
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };
@@ -3494,6 +3900,7 @@ mod tests {
             sites: Default::default(),
             usage: Default::default(),
             plans: Default::default(),
+            metering: Default::default(),
             failed: Vec::new(),
             demo: false,
         };

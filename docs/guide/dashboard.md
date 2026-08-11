@@ -37,6 +37,7 @@ and the body needs the room more than the nav does.
 | <kbd>enter</kbd> | Switch pane, on a view that has two |
 | <kbd>d</kbd> | Token detail line under each row, on and off |
 | <kbd>u</kbd> | Switch the Overview chart between spend and tokens |
+| <kbd>m</kbd> | Switch the Usage view between tokens and metering windows |
 | <kbd>[</kbd>/<kbd>]</kbd> | Move the chart cursor one bucket |
 | <kbd>backspace</kbd> | Drop the chart cursor |
 | <kbd>w</kbd> | Regroup the charts by day, week or month |
@@ -58,22 +59,26 @@ one of those is a caveat rather than a count.
 
 | Card | Figure | Qualifiers |
 |---|---|---|
-| **SPEND** | What the seats actually cost, `$X/mo` | Where the figures came from (`N configured seat(s)`, `N plan(s) detected`), the saving against API rates, and `▲ N tool(s) unpriced` if any |
-| **TOKEN COST** | The window's tokens at API list rates | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
+| **SPEND** | What is actually paid: the seats, `$X/mo` | Where the figures came from (`N configured seat(s)`, `N plan(s) detected`), whether extra usage is in play (`no extra usage`, or `▲ extra usage likely` once a metering window has pegged), and `▲ N tool(s) unpriced` if any |
 | **TOKENS** | Everything billable, cache included | Message count, distinct model count |
-| **TOOLS** | AI tools detected | `▲ N autonomous`, vendor count |
-| **AI SITES** | Distinct AI domains visited | Visit total, and `▲ N browser(s) unreadable` if any |
+| **TOKEN COST** | The window's tokens at API list rates | `over N days · ≈ $X/day`, the period delta, and `▲ N model(s) unpriced` — or `at API list rates` when none are, because the figure is list-rate arithmetic, not a bill |
+| **AVG USAGE RATE** | Mean peak of the 5-hour metering windows | Window count, hottest window (`▲` amber from 90%), and the pointer to <kbd>m</kbd> on Usage for the per-day breakdown |
+| **TOOLS & SITES** | Installed tools `·` AI domains visited | `▲ N autonomous`, visit total, and `▲ N browser(s) unreadable` if any |
 
-SPEND and TOKEN COST are different questions about the same tokens. TOKEN COST
-is arithmetic — the window's usage priced per token at list rates. SPEND is
-what is actually paid for the seats behind that usage: a figure from
-`[cost.subscriptions]` is shown plainly; one from a plan the tool itself names
-— its account file first (`~/.claude.json`, `~/.codex/auth.json`), its
-transcripts as the fallback — is priced at that plan's list rate and marked
-`≈` an estimate; a tool with usage but no figure makes the total `≥` a floor.
-Knowing nothing, the card shows `–` and says how to configure it. Nothing is
-fetched, nothing is guessed, and the plan's *name* is the only thing read from
-those files — never the credentials that sit beside it.
+The order is deliberate: the actual bill first, then the work done, then what
+that work *would* have cost, then how hard the plan is being driven, then the
+machine's inventory. SPEND carries only real money — seats from
+`[cost.subscriptions]` shown plainly, a plan the tool itself names (its
+account file first, `~/.claude.json` and `~/.codex/auth.json`, its transcripts
+as the fallback) priced at list rate and marked `≈` an estimate, a tool with
+usage but no figure making the total `≥` a floor — and the API-rate
+hypothetical never appears on it; that comparison lives on TOKEN COST and in
+the Cost view. Knowing nothing, SPEND shows `–` and says how to configure it.
+Nothing is fetched, nothing is guessed, and the plan's *name* is the only
+thing read from those files — never the credentials that sit beside it. AVG
+USAGE RATE comes from the same metering samples as the Usage view's
+<kbd>m</kbd> toggle, and shows `–` on a machine without them rather than a
+zero that would read as idleness.
 
 ### The rate and the delta
 
@@ -208,6 +213,36 @@ Every kind of token is on the detail line under each row, which is what
 output rate — and both are inside **TOTAL**, so before they had a line of their
 own the visible columns did not add up to the total beside them.
 
+### Metering windows
+
+<kbd>m</kbd> swaps this view for the plan's own meter. Claude plans are
+enforced in 5-hour windows — how many get started, and how deep each runs —
+and tokens say nothing about either. Claude Desktop samples that meter every
+few minutes into `plan-usage-history.json`; surface reconstructs the windows
+from those samples and shows, per day, how many were started and the peak each
+reached:
+
+| Column | Meaning |
+|---|---|
+| **DAY** | Window start date, UTC |
+| **WINDOWS** | 5-hour windows started that day |
+| **AVG PEAK** | Mean of the day's window peaks |
+| **MAX PEAK** | The day's deepest window, `▲` amber from 90% |
+| **VS CAP** | The deepest window as a bar against the cap itself — half a bar is half way to the meter, on every machine |
+
+The title carries the whole story in one line: window count, the span the
+samples cover, average peak, hottest ever. A window that reaches 100% and
+keeps going is where extra usage starts billing, so the peaks here are the
+early warning the token counts cannot give.
+
+Three honest limits: the samples exist only while Claude Desktop runs, so the
+window count is a floor; the reconstruction is heuristic (a sharp utilisation
+drop is read as a reset); and it is Claude-only — Codex's equivalent lives in
+its transcripts' `rate_limits` and is not read yet. A machine without the
+history file gets that stated, never a zero that would read as idleness.
+Timestamps and percentages are all that is read; the org id in the file is
+never kept.
+
 **The chart above this table is stacked by model, not by tool, and a model is the
 same colour in both.** That is the point of keying them the same way: a segment in
 the chart and a row in the table are visibly one thing. The swatch beside each
@@ -324,7 +359,11 @@ walks projects and the chart follows.
 ```
 
 Attribution is by the working directory a session ran in, resolved to its git
-`origin` slug — never a path, and never a branch. Work outside a repository lands
+`origin` slug — never a path, and never a branch. A directory with no remote is
+named by its basename, which is how one project can appear as two rows (`HAI
+Neo` beside `holistic-ai/hai-neo`); declare those one project with
+[`[usage.repo_aliases]`](configuration.md#usagerepo_aliases) and the rows fold
+together, history included. Work outside a repository lands
 in `(unattributed)`, which is a row like any other rather than a discard — see
 [Repository
 attribution](../getting-started/concepts.md#repository-attribution).
