@@ -1,6 +1,6 @@
 # Coverage
 
-What surface knows how to recognise: **18 AI tools**, **30 AI domains**, **10
+What surface knows how to recognise: **19 AI tools**, **30 AI domains**, **10
 browsers** and **3 token sources**.
 
 Every table here is best-effort and expected to go stale — this space moves fast.
@@ -19,6 +19,7 @@ makes.
 | ![](../assets/tools/claude_desktop.png){ width="22" height="22" } | Claude Desktop | Anthropic | assistant | | `claude_desktop` |
 | ![](../assets/tools/openai_codex.png){ width="22" height="22" } | Codex CLI | OpenAI | coding agent | ✅ | `openai_codex` |
 | ![](../assets/tools/chatgpt_desktop.png){ width="22" height="22" } | ChatGPT Desktop | OpenAI | assistant | | `chatgpt_desktop` |
+|  | Grok Bot | xAI | autonomous agent | ✅ | `grok_bot` |
 | ![](../assets/tools/opencode.png){ width="22" height="22" } | OpenCode | SST | coding agent | ✅ | `opencode` |
 | ![](../assets/tools/openclaw.png){ width="22" height="22" } | OpenClaw | OpenClaw | autonomous agent | ✅ | `openclaw` |
 | ![](../assets/tools/cursor.png){ width="22" height="22" } | Cursor | Anysphere | editor | ✅ | `cursor` |
@@ -47,6 +48,7 @@ tool it is inventorying. Every detection carries its evidence into the
 | Claude Desktop | | | Claude | `Claude Helper` |
 | Codex CLI | `codex` | `~/.codex` | | `codex` |
 | ChatGPT Desktop | | | ChatGPT | `ChatGPT` |
+| Grok Bot | `Grok Bot` | `~/.grokbot` | Grok Bot | `Grok Bot` |
 | OpenCode | `opencode` | `~/.opencode`, `~/.config/opencode` | | `opencode` |
 | OpenClaw | `openclaw`, `clawdbot`, `moltbot` | `~/.openclaw`, `~/.clawdbot`, `~/.moltbot`, `~/.config/openclaw` | OpenClaw | `openclaw`, `clawdbot`, `moltbot` |
 | Cursor | `cursor` | `~/.cursor` | Cursor | `Cursor` |

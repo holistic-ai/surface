@@ -15,7 +15,25 @@ publishing empty notes.
 
 ## [Unreleased]
 
+### Added
+
+- **Grok Bot is detected.** xAI's desktop agent joins the tool table as an
+  autonomous agent, found by `~/.grokbot`, its process, its executable or its
+  installed application name. It ships a local-exec daemon, speaks MCP and can
+  hold an egress tunnel open, so it is an agent that acts on this machine
+  rather than a chat window — and it counts toward the autonomous total on the
+  Overview. Detection only: `~/.grokbot` holds daemon state and settings, no
+  transcripts, so Grok Bot contributes no tokens or cost, the same as the other
+  desktop tools. `grok.com` and `x.ai` were already covered as domains.
+
 ### Fixed
+
+- **A Windows DisplayName ending in a version now matches.** Installed
+  applications were matched exactly, with an allowance for `Cursor (User)` and
+  dashed qualifiers, so `Grok Bot 0.44.0` failed the one channel that can see a
+  GUI tool which has never been launched. A trailing version — digits and dots
+  to the end of the string, and nothing else — is now accepted, which keeps
+  `Claude` from claiming a hypothetical `Claude 3 Desktop`.
 
 - **A missing cache rate no longer bills cache tokens at a silent zero.**
   (#16) For a model whose price-table entry omits `cache_read_input_token_cost`

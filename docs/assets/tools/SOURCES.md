@@ -9,12 +9,18 @@ owner and is used here only to identify the tool surface detects.
 Regenerate with the script in the pull request that added them; refresh a
 single logo by re-fetching its URL and re-running the same chip step.
 
+`grok_bot.png` is listed above but not yet drawn: its row in the tool tables
+renders without a mark until someone runs the chip step for it. An empty cell
+is deliberate — better than a broken image or a logo composited off-style by
+hand.
+
 | File | Source |
 |---|---|
 | `claude_code.png` | <https://cdn.simpleicons.org/claude/_default> |
 | `claude_desktop.png` | <https://cdn.simpleicons.org/claude/_default> |
 | `openai_codex.png` | <https://svgl.app/library/openai.svg> |
 | `chatgpt_desktop.png` | <https://svgl.app/library/openai.svg> |
+| `grok_bot.png` | <https://cdn.simpleicons.org/grok/_default> — **not yet generated** |
 | `opencode.png` | <https://cdn.simpleicons.org/opencode/_default> |
 | `openclaw.png` | <https://svgl.app/library/openclaw.svg> |
 | `cursor.png` | <https://cdn.simpleicons.org/cursor/_default> |

@@ -92,7 +92,7 @@ looked for.
 
 | | Where it looks | What it records |
 |---|---|---|
-| **Tools** | `PATH`, config directories, editor extensions, running processes, installed apps | Which of 18 AI tools are present, and which can execute code on your machine |
+| **Tools** | `PATH`, config directories, editor extensions, running processes, installed apps | Which of 19 AI tools are present, and which can execute code on your machine |
 | **Sites** | Browser history for 10 browsers (Chromium and Firefox families) | Visit counts for 30 known AI domains — domain, count, last-seen date, nothing else |
 | **Usage** | Transcripts Claude Code, Codex and OpenCode already write | Tokens per day, tool and model, attributed to the git repo the work happened in |
 | **Cost** | LiteLLM's public price table | The above, priced — plus a subscription comparison if you configure one |
@@ -101,12 +101,12 @@ The first run reads every transcript, which on a large corpus takes a while.
 Every run after it reads only the bytes that were appended — typically under a
 second.
 
-### The 18 tools it recognises
+### The 19 tools it recognises
 
 **Can act** means the tool can execute code or take actions on this machine on a
 model's behalf — the one judgement surface makes. **Tokens** means it also writes
 a transcript surface can read, so it contributes usage and cost rows; the other
-fifteen are detected but contribute no numbers, because they write nothing
+sixteen are detected but contribute no numbers, because they write nothing
 readable.
 
 | | Tool | Vendor | Kind | Can act | Tokens |
@@ -115,6 +115,7 @@ readable.
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/claude_desktop.png" alt="" width="22" height="22"> | **Claude Desktop** | Anthropic | assistant |  |  |
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/openai_codex.png" alt="" width="22" height="22"> | **Codex CLI** | OpenAI | coding agent | ✅ | ✅ |
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/chatgpt_desktop.png" alt="" width="22" height="22"> | **ChatGPT Desktop** | OpenAI | assistant |  |  |
+|  | **Grok Bot** | xAI | autonomous agent | ✅ |  |
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/opencode.png" alt="" width="22" height="22"> | **OpenCode** | SST | coding agent | ✅ | ✅ |
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/openclaw.png" alt="" width="22" height="22"> | **OpenClaw** | OpenClaw | autonomous agent | ✅ |  |
 | <img src="https://raw.githubusercontent.com/holistic-ai/surface/main/docs/assets/tools/cursor.png" alt="" width="22" height="22"> | **Cursor** | Anysphere | editor | ✅ |  |
