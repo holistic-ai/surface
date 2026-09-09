@@ -120,6 +120,19 @@ pub struct CostConfig {
     /// Overrides the built-in list-price defaults, which are estimates and go
     /// stale. Set what you actually pay and the comparison becomes real.
     pub subscriptions: BTreeMap<String, f64>,
+
+    /// The plan slug a tool is on, where the tool's own files cannot say.
+    ///
+    /// Detection reads the plan off account files and transcripts, which is
+    /// enough whenever the tool writes down what it is paying for. Sometimes
+    /// it does not: ChatGPT Business writes `team` for a standard seat and a
+    /// premium one alike, and a premium seat costs five times as much. A slug
+    /// here is taken as fact and outranks both detected sources.
+    ///
+    /// Prefer this over [`Self::subscriptions`] when the plan has a published
+    /// list price — it keeps the plan's *name* right everywhere it is shown,
+    /// where a bare dollar figure only fixes the arithmetic.
+    pub plans: BTreeMap<String, String>,
 }
 
 impl CostConfig {
@@ -160,6 +173,15 @@ pub(crate) fn list_price(plan: &str) -> Option<f64> {
         // ChatGPT: `chatgpt_plan_type`. Business (né Team) was repriced
         // 2026-04-02 from $30 to $25 monthly.
         "team" => Some(25.0),
+        // The Business *premium* seat, sold from 2026-08-10: five times the
+        // usage and no five-hour cap, at $125 monthly ($100 annual).
+        //
+        // Nothing on this disk distinguishes it. `chatgpt_plan_type` reads
+        // `team` for both seat types, and no other claim in the token — nor
+        // anything in Codex's global state — names the tier. So detection
+        // cannot reach this slug and must not guess it: it is priceable only
+        // once `[cost.plans]` declares the seat.
+        "team_premium" => Some(125.0),
         _ => None,
     }
 }
@@ -267,5 +289,31 @@ mod tests {
         let cost = CostConfig::default();
         assert_eq!(cost.monthly("claude_code", Some("enterprise")), None);
         assert_eq!(cost.monthly("claude_code", None), None);
+    }
+
+    #[test]
+    fn a_business_premium_seat_prices_five_times_a_standard_one() {
+        // Both seats report `chatgpt_plan_type: team`; only a declared slug
+        // separates $125 from $25. Pricing them the same is the bug.
+        let cost = CostConfig::default();
+        assert_eq!(cost.monthly("codex", Some("team")), Some((25.0, true)));
+        assert_eq!(
+            cost.monthly("codex", Some("team_premium")),
+            Some((125.0, true))
+        );
+    }
+
+    #[test]
+    fn a_declared_plan_is_still_a_list_price_and_says_so() {
+        // `[cost.plans]` names the seat; it does not claim to know the
+        // invoice. The figure stays flagged an estimate, unlike
+        // `[cost.subscriptions]`, which is what was actually paid.
+        let cost = CostConfig::default();
+        let (usd, estimated) = cost.monthly("codex", Some("team_premium")).unwrap();
+        assert_eq!(usd, 125.0);
+        assert!(
+            estimated,
+            "a list price is an estimate whoever named the plan"
+        );
     }
 }
