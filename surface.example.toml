@@ -65,6 +65,20 @@ window_days = 30
 # claude_code = 100.0
 # codex = 30.0
 
+# The plan a tool is on, where the tool's own files cannot say. Values are plan
+# slugs; a slug here outranks both the account file and the transcripts, and is
+# priced at that plan's list rate — so it stays marked an estimate, while the
+# plan's name comes out right everywhere it is shown.
+#
+# ChatGPT Business is why this exists: standard seats are $25/month and premium
+# seats $125, and chatgpt_plan_type reads `team` for both. Nothing on disk tells
+# them apart, so a premium seat prices as a standard one until declared here.
+#
+# Use [cost.subscriptions] instead when the rate is yours rather than published
+# — an enterprise agreement, say. It wins over anything set here.
+[cost.plans]
+# codex = "team_premium"
+
 # ------------------------------------------------------------ env overrides
 #
 # Environment variables win over this file, and are handy for one-off runs:

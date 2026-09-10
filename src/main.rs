@@ -388,6 +388,7 @@ fn print_json(scan: &scan::Scan, timings: &scan::Timings, prices: &pricing::Pric
                         "source": match p.source {
                             crate::scan::plans::PlanSource::Account => "account",
                             crate::scan::plans::PlanSource::Transcript => "transcript",
+                            crate::scan::plans::PlanSource::Configured => "configured",
                         },
                     })),
                 "evidence": d.evidence,
