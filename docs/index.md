@@ -145,7 +145,7 @@ surface --json --offline | jq '.usage.totals_by_tool'
 | **Binary** | ~2 MB, static, no runtime dependencies |
 | **Warm scan** | ~400 ms — 6 ms tools, 330 ms browser history, 50 ms transcripts |
 | **Cold scan** | ~19 s once, reading 900 MB of transcripts; ~50 ms thereafter |
-| **Coverage** | [18 AI tools · 30 AI domains · 10 browsers · 3 token sources](reference/coverage.md) |
+| **Coverage** | [19 AI tools · 30 AI domains · 10 browsers · 3 token sources](reference/coverage.md) |
 | **Platforms** | macOS, Linux, Windows — x86-64 and arm64 |
 | **Privilege** | Runs unprivileged. Never elevates, never prompts |
 | **Network** | One optional request, for model prices. `--offline` skips it |

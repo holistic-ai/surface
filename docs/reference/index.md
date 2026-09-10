@@ -11,7 +11,7 @@ Every flag, every exit code, every environment variable.
 
 <div class="site-card" markdown>
 ### [Coverage](coverage.md)
-The 18 tools, 30 domains, 10 browsers and 3 token sources surface knows about.
+The 19 tools, 30 domains, 10 browsers and 3 token sources surface knows about.
 </div>
 
 <div class="site-card" markdown>

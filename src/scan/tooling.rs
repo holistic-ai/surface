@@ -130,6 +130,20 @@ pub const AI_TOOLS: &[AiTool] = &[
         extensions: &[],
     },
     AiTool {
+        id: "grok_bot",
+        name: "Grok Bot",
+        vendor: "xAI",
+        // Not an assistant: it ships a local-exec daemon, speaks MCP and can
+        // hold an egress tunnel open, so it runs unattended between prompts.
+        kind: ToolKind::AutonomousAgent,
+        autonomous: true,
+        apps: &["Grok Bot"],
+        executables: &["Grok Bot"],
+        config_paths: &[".grokbot"],
+        processes: &["Grok Bot"],
+        extensions: &[],
+    },
+    AiTool {
         id: "opencode",
         name: "OpenCode",
         vendor: "SST",
@@ -442,17 +456,37 @@ pub struct Summary {
 
 /// Application names need an exact match: `Claude` must not claim
 /// `Claude Code URL Handler`, which belongs to a different entry in the table.
-/// Windows DisplayNames carry suffixes like `Cursor (User)`, so a parenthesised
-/// or dashed qualifier is allowed.
+/// Windows DisplayNames carry suffixes like `Cursor (User)` or a bare version
+/// (`Grok Bot 0.44.0`), so a parenthesised, dashed, or version qualifier is
+/// allowed.
 fn matches_app(observed: &str, pattern: &str) -> bool {
     let observed = observed.trim();
     if observed.eq_ignore_ascii_case(pattern) {
         return true;
     }
-    observed
+    let Some(rest) = observed
         .get(..pattern.len())
-        .is_some_and(|head| head.eq_ignore_ascii_case(pattern))
-        && matches!(&observed[pattern.len()..], rest if rest.starts_with(" (") || rest.starts_with(" - "))
+        .filter(|head| head.eq_ignore_ascii_case(pattern))
+        .map(|_| &observed[pattern.len()..])
+    else {
+        return false;
+    };
+    rest.starts_with(" (") || rest.starts_with(" - ") || is_version_suffix(rest)
+}
+
+/// ` 0.44.0` yes, ` 3 Desktop` no.
+///
+/// Digits and dots only, to the end of the string: a version is the whole
+/// remainder or it is part of a different product's name. Without that anchor
+/// `Claude` would claim a hypothetical `Claude 3 Desktop`, which is exactly the
+/// over-reach the exact match above exists to prevent.
+fn is_version_suffix(rest: &str) -> bool {
+    let Some(digits) = rest.strip_prefix(' ') else {
+        return false;
+    };
+    !digits.is_empty()
+        && digits.starts_with(|c: char| c.is_ascii_digit())
+        && digits.chars().all(|c| c.is_ascii_digit() || c == '.')
 }
 
 /// Executables match exactly, after stripping a Windows extension.
@@ -724,6 +758,45 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(detected_ids(&match_tools(&observed)), vec!["cursor"]);
+    }
+
+    #[test]
+    fn a_versioned_display_name_still_matches() {
+        // Grok Bot registers as `Grok Bot 0.44.0`, and an installed copy that
+        // has never been launched has no config dir and no running process —
+        // the DisplayName is the only channel left.
+        let observed = Observed {
+            apps: vec!["Grok Bot 0.44.0".into()],
+            ..Default::default()
+        };
+        assert_eq!(detected_ids(&match_tools(&observed)), vec!["grok_bot"]);
+    }
+
+    #[test]
+    fn a_version_suffix_does_not_swallow_another_products_name() {
+        // ` 3 Desktop` is not a version, so `Claude` must not claim it.
+        let observed = Observed {
+            apps: vec!["Claude 3 Desktop".into()],
+            ..Default::default()
+        };
+        assert!(detected_ids(&match_tools(&observed)).is_empty());
+    }
+
+    #[test]
+    fn grok_bot_is_detected_and_counted_autonomous() {
+        // The config dir alone is enough; the daemon beside it is why this
+        // counts as an agent rather than a chat window.
+        let observed = Observed {
+            config_paths: vec![".grokbot".into()],
+            ..Default::default()
+        };
+        let detected = match_tools(&observed);
+        assert_eq!(detected_ids(&detected), vec!["grok_bot"]);
+
+        let tool = detected[0].tool;
+        assert!(tool.autonomous, "it executes locally between prompts");
+        assert_eq!(tool.vendor, "xAI");
+        assert_eq!(summarise(&detected).autonomous, 1);
     }
 
     #[test]
