@@ -96,6 +96,7 @@ pub fn run(config: &Config, state_dir: &Path) -> (Scan, Timings) {
     // A few small file reads; neither worth a timing of its own.
     let mut plans = section("plans", &mut failed, plans::scan).unwrap_or_default();
     plans::merge_transcripts(&mut plans, &usage.ledger.plans);
+    plans::apply_overrides(&mut plans, &config.cost.plans);
     let metering = section("metering", &mut failed, meter::scan).unwrap_or_default();
 
     timings.total_ms = started.elapsed().as_millis();

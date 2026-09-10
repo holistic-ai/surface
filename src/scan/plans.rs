@@ -21,6 +21,13 @@
 //! account file names the plan the tool is signed into *now*, and exists even
 //! for a tool that has not run in the window. Where both speak, the account
 //! file wins — see the merge in [`crate::scan::run`].
+//!
+//! # Where neither can speak
+//!
+//! Some plans are invisible from here. ChatGPT Business sells standard and
+//! premium seats that differ five-fold in price and identically in every file
+//! this module can read. [`apply_overrides`] is the way out: a `[cost.plans]`
+//! entry states the seat, and is trusted over anything detected.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -32,6 +39,9 @@ pub enum PlanSource {
     Account,
     /// A transcript record: what it was on when it last wrote usage.
     Transcript,
+    /// A `[cost.plans]` entry: what the operator says the seat is, for a plan
+    /// the tool does not write down.
+    Configured,
 }
 
 /// One tool's detected plan.
@@ -82,6 +92,40 @@ pub fn merge_transcripts(
             plan: plan.clone(),
             source: PlanSource::Transcript,
         });
+    }
+}
+
+/// Overlay the plans declared in `[cost.plans]`.
+///
+/// Config outranks both detected sources, because it is the only source for a
+/// seat the tool never describes. ChatGPT Business is the case that forces
+/// this: `chatgpt_plan_type` reads `team` for a standard seat and for a
+/// premium one, and the premium seat costs $125 against the standard $25. No
+/// other claim in the token names the tier, so pricing what detection found
+/// would under-report a real premium seat five-fold — the same failure the
+/// Claude seat lookup above exists to avoid, minus the field that made it
+/// fixable there.
+///
+/// Keys are accepted in either spelling, since `[cost.subscriptions]` next to
+/// it takes the usage id and the tool table uses the detection one.
+pub fn apply_overrides(
+    plans: &mut BTreeMap<String, DetectedPlan>,
+    overrides: &BTreeMap<String, String>,
+) {
+    for (tool, plan) in overrides {
+        let plan = plan.trim();
+        // An empty slug is a half-finished config line, not an instruction to
+        // forget what was detected.
+        if plan.is_empty() {
+            continue;
+        }
+        plans.insert(
+            usage_tool_id(tool).to_string(),
+            DetectedPlan {
+                plan: plan.to_string(),
+                source: PlanSource::Configured,
+            },
+        );
     }
 }
 
@@ -308,5 +352,63 @@ mod tests {
         assert_eq!(plans["codex"].source, PlanSource::Account);
         assert_eq!(plans["claude_code"].plan, "max_5x", "gap filled");
         assert_eq!(plans["claude_code"].source, PlanSource::Transcript);
+    }
+
+    #[test]
+    fn a_declared_plan_outranks_the_account_file_that_cannot_see_the_seat() {
+        // The premium Business seat this exists for: the token says `team`
+        // and is not lying, it simply cannot express the tier.
+        let mut plans = BTreeMap::from([(
+            "codex".to_string(),
+            DetectedPlan {
+                plan: "team".to_string(),
+                source: PlanSource::Account,
+            },
+        )]);
+
+        apply_overrides(
+            &mut plans,
+            &BTreeMap::from([("codex".to_string(), "team_premium".to_string())]),
+        );
+
+        assert_eq!(plans["codex"].plan, "team_premium");
+        assert_eq!(plans["codex"].source, PlanSource::Configured);
+    }
+
+    #[test]
+    fn a_declared_plan_is_accepted_under_either_tool_spelling() {
+        // `[cost.subscriptions]` is keyed the usage way and the tool table
+        // the detection way; a config that mixes them should still land.
+        let mut plans = BTreeMap::new();
+        apply_overrides(
+            &mut plans,
+            &BTreeMap::from([("openai_codex".to_string(), "team_premium".to_string())]),
+        );
+
+        assert_eq!(plans["codex"].plan, "team_premium");
+        assert!(
+            !plans.contains_key("openai_codex"),
+            "normalised, not doubled"
+        );
+    }
+
+    #[test]
+    fn an_empty_declared_slug_leaves_detection_alone() {
+        // A half-written config line should not erase a real detection.
+        let mut plans = BTreeMap::from([(
+            "codex".to_string(),
+            DetectedPlan {
+                plan: "team".to_string(),
+                source: PlanSource::Account,
+            },
+        )]);
+
+        apply_overrides(
+            &mut plans,
+            &BTreeMap::from([("codex".to_string(), "   ".to_string())]),
+        );
+
+        assert_eq!(plans["codex"].plan, "team");
+        assert_eq!(plans["codex"].source, PlanSource::Account);
     }
 }

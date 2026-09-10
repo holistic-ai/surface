@@ -17,6 +17,24 @@ publishing empty notes.
 
 ### Fixed
 
+- **A ChatGPT Business premium seat no longer prices as a standard one.**
+  OpenAI began selling premium Business seats on 2026-08-10 at $125/month
+  against the standard $25, and `chatgpt_plan_type` reads `team` for both.
+  Nothing else in the OpenID token — nor anywhere in Codex's global state —
+  names the tier, so a premium seat was silently reported at a fifth of its
+  cost and the SPEND card was short by $100 per seat. The premium rate is now
+  in the price table as `team_premium`, and because no file on disk can reach
+  that slug, a new `[cost.plans]` entry declares the seat:
+
+  ```toml
+  [cost.plans]
+  codex = "team_premium"
+  ```
+
+  A declared plan outranks both detected sources and is still priced at list,
+  so it stays marked an estimate — unlike `[cost.subscriptions]`, which says
+  what you actually pay. `--json` reports the provenance as `configured`.
+
 - **A missing cache rate no longer bills cache tokens at a silent zero.**
   (#16) For a model whose price-table entry omits `cache_read_input_token_cost`
   or `cache_creation_input_token_cost`, those tokens were priced at zero and

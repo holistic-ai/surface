@@ -135,6 +135,31 @@ no plan and has no entry gets no row rather than a guess. A configured figure
 always wins and is used as given; a list-price fallback is labelled `est`
 wherever it is shown.
 
+### When the tool cannot name its own seat
+
+Detection can only report what a tool writes down, and some plans are invisible
+from disk. ChatGPT Business sells **standard** seats at $25/month and
+**premium** seats at $125/month, and `~/.codex/auth.json` records
+`chatgpt_plan_type: team` for both — nothing in the token, or anywhere else
+Codex stores state, names the tier. Left alone, a premium seat is priced as a
+standard one and your spend reads five times under.
+
+Declare the seat and detection stops guessing:
+
+```toml
+[cost.plans]
+codex = "team_premium"
+```
+
+Keys are tool ids, as above; values are plan slugs. A slug here outranks both
+the account file and the transcripts, and is priced at that plan's published
+list rate — so the figure is still labelled `est`, and the plan's *name* is
+right everywhere it is shown. That is the difference from
+`[cost.subscriptions]`, which sets the dollars directly and is taken as what
+you actually pay. Use `[cost.plans]` when your plan has a list price, and
+`[cost.subscriptions]` when it does not — an enterprise agreement, say, or any
+rate that is yours rather than published.
+
 ## Environment variables
 
 Handy for a one-off run, and what the test suite uses to stay out of a real
